@@ -1,0 +1,5 @@
+{
+  "s": <0|1>    // Is game singleplayer?
+  "p": ""       // password
+  "d": ""       // Flattened board
+}

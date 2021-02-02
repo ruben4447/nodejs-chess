@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess | Home</title>
+  <link rel="stylesheet" href="./css/master.css">
+  
+  <!-- Socket.IO -->
+  <script type="text/javascript" charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
+  
+  <!-- bootbox -->
+  <link rel="stylesheet" href="./css/bootstrap.css">
+  <script type="text/javascript" charset="utf-8" src="./js/lib/jquery.min.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/lib/popper.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/lib/bootstrap.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/lib/bootbox.all.min.js"></script>
+</head>
+<body>
+  <div class='centre'>
+    <h1>Chess Home</h1>
+    <br>
+
+    <h2>Active Games</h2>
+    <p>Active games: <span id='game-count'></span></p>
+    <button type="button" class="btn btn-primary" id='btn-connect'>Connect to Game</button>
+    <br><br>
+
+    <h2>New Game</h2>
+    <button type="button" class="btn btn-primary">Create New Game</button>
+  </div>
+
+  <script type="text/javascript" charset="utf-8" src="./js/index.html.js"></script>
+</body>
+</html>
