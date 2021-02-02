@@ -3,26 +3,27 @@ const chess = require('./chess.js');
 
 /**
  * Store access tokens which allow access to certain games
- * - access_token: [chess_game, expire_timer_id, socket_used_by]
- * @type {{[t: string]: [chess.ChessInstance, number, null | socket]}}
+ * - access_token: [chess_game, expire_timer_id, socket_used_by, is_spectator]
+ * @type {{[t: string]: [chess.ChessInstance, number, null | socket, boolean]}}
  */
 const access_tokens = {};
 
 /**
  * Create new access token
  * @param {ChessInstance} game - Game instance to create token for
+ * @param {boolean} spec - Join game as spectator?
  * @return {string} access token
  */
-const create = game => {
+const create = (game, spec) => {
   const token = uuid.v4();
   let timer = setTimeout(() => {
     delete access_tokens[token];
-    console.log(`Removed access token for game '${game._name}' : ${token}`);
+    console.log(`Removed access token for game '${game._name}' : ${token} (spectator: ${spec})`);
   }, 1500);
 
-  access_tokens[token] = [game, timer, null];
+  access_tokens[token] = [game, timer, null, spec];
 
-  console.log(`Added access token for game '${game._name}' : ${token}`);
+  console.log(`Added access token for game '${game._name}' : ${token} (spectator: ${spec})`);
   return token;
 };
 

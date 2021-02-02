@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game | Play</title>
   <link rel="stylesheet" href="./css/master.css">
+  <link rel="stylesheet" href="./css/play.css">
   
   <!-- Socket.IO -->
   <script type="text/javascript" charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
@@ -12,14 +13,38 @@
   <!-- bootbox -->
   <link rel="stylesheet" href="./css/bootstrap.css">
   <script type="text/javascript" charset="utf-8" src="./js/lib/jquery.min.js"></script>
-  <script type="text/javascript" charset="utf-8" src="./js/lib/popper.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/lib/bootstrap.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/lib/bootbox.all.min.js"></script>
+
+  <!-- P5.js -->
+  <script type="text/javascript" charset="utf-8" src="./js/lib/p5.min.js"></script>
 </head>
 <body>
-  <button type="button" class="btn btn-primary" id='btn-disconnect'>Leave Game</button>
+  <main class='flex'>
+    <div class='panel'></div>
+    <div id='canvas-wrapper'></div>
+    <div class='panel flex'>
+      <div class="centre">
+        <h2 id='game--name'>unknown</h2>
+
+        <span class='small-info'>Players: <span id='game-players'></span></span>
+        <p class='small-info info-alert' id='game-full'>Game is full</p>
+
+        <span class='small-info'>Spectators: <span id='game-spectators'></span></span>
+        <p class='small-info info-alert' id='am-spectator'>Spectator</p>
+
+        <div class="flex-bottom">
+          <button type="button" class="btn btn-primary" id='btn-disconnect'>Leave</button>
+          <br><br>
+          <button type="button" class="btn btn-danger" id='btn-delete'>Delete</button>
+        </div>
+      </div>
+    </div>
+  </main>
   
   <script type="text/javascript" charset="utf-8" src="./js/socket.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/dom.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/game.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/p5.js"></script>
 </body>
 </html>

@@ -1,0 +1,30 @@
+.flex {
+  display: flex;
+}
+
+div#board {
+  margin: 0 auto;
+}
+
+.panel {
+  border: 1px solid #2B313D;
+  padding: 10px;
+  height: 99.5vh;
+  /* width: 15vw; */
+}
+
+.flex>.flex-bottom {
+  display: inline-block;
+  align-self: flex-end;
+}
+
+.small-info {
+  text-transform: uppercase;
+  font-size: .7em;
+  font-weight: bold;
+}
+
+.info-alert {
+  color: crimson;
+  font-weight: bolder;
+}

@@ -1,5 +1,5 @@
 {
-  "white": {
+  "w": {
     "king": "\u2654",
     "queen": "\u2655",
     "rook": "\u2656",
@@ -8,7 +8,7 @@
     "pawn": "\u2659"
   },
 
-  "black": {
+  "b": {
     "king": "\u265A",
     "queen": "\u265B",
     "rook": "\u265C",

@@ -1,6 +1,5 @@
 const fs = require('fs');
 const btoa = require('btoa'), atob = require('atob');
-const uuid = require('uuid');
 
 const saves_path = "data/games/";
 
@@ -12,20 +11,66 @@ class ChessInstance {
 
     this._data = "";
     all[name] = this;
+
+    /**
+     * Array of all connected Connection objects that are players
+     * @type {Connection[]}
+     */
+    this.conns = [];
+
+    /**
+     * Array of all connected Connection objects that are spectators
+     * @type {Connection[]}
+     */
+    this.conns_s = [];
   }
 
   get filepath() { return saves_path + btoa(this._name) + '.json'; }
+  get room_name() { return "game:" + this._name; }
+
+  /**
+   * Add Connection object
+   * @param {Connection} conn
+   */
+  add_conn(conn) {
+    if (this.isFull() && !conn.spectator) throw `Chess.add_conn: Chess game '${this._name}' is full`;
+    let arr = conn.spectator ? this.conns_s : this.conns;
+    arr.push(conn);
+    conn.socket.join(this.room_name);
+  }
+
+  /**
+   * Remove connection object
+   */
+  remove_conn(conn) {
+    let arr = conn.spectator ? this.conns_s : this.conns;
+    const i = arr.indexOf(conn);
+    if (i !== -1) {
+      arr.splice(i, 1);
+      conn.socket.leave(this.room_name);
+    }
+  }
 
   // Is game full? (can we connect to it?)
-  isFull() { return false; }
+  isFull() {
+    return this._singleplayer ? (this.conns.length == 1) : true;
+  }
 
   saveToFile() {
     const data = JSON.stringify({
       s: this._singleplayer ? 1 : 0,
       p: btoa(this._passwd),
-      d: btoa(this._data),
+      d: this._data,
     });
     fs.writeFileSync(this.filepath, data);
+  }
+
+  /**
+   * Delete game
+   */
+  del() {
+    fs.unlink(this.filepath, () => console.log(`Chess.del: deleted file ${this.filepath}`));
+    delete all[this._name];
   }
 }
 
@@ -34,9 +79,11 @@ class ChessInstance {
  */
 ChessInstance.newData = (obj) => {
   obj._data = "";
-  obj._data += pieces.black.rook + pieces.black.knight + pieces.black.bishop + pieces.black.queen + pieces.black.king + pieces.black.bishop + pieces.black.knight + pieces.black.rook;
+  obj._data += pieces.b.rook + pieces.b.knight + pieces.b.bishop + pieces.b.queen + pieces.b.king + pieces.b.bishop + pieces.b.knight + pieces.b.rook;
+  obj._data += pieces.b.pawn.repeat(8);
   for (let i = 0; i < 4; i++) obj._data += ' '.repeat(8);
-  obj._data += pieces.white.rook + pieces.white.knight + pieces.white.bishop + pieces.white.queen + pieces.white.king + pieces.white.bishop + pieces.white.knight + pieces.white.rook;
+  obj._data += pieces.w.pawn.repeat(8);
+  obj._data += pieces.w.rook + pieces.w.knight + pieces.w.bishop + pieces.w.queen + pieces.w.king + pieces.w.bishop + pieces.w.knight + pieces.w.rook;
 };
 
 /**
@@ -50,7 +97,7 @@ ChessInstance.fromFile = (name, b64) => {
   let data = JSON.parse(fs.readFileSync(filepath));
 
   let obj = new ChessInstance(b64 ? atob(name) : name, !!data.s, atob(data.p));
-  obj._data = atob(data.d);
+  obj._data = data.d;
   return obj;
 };
 
