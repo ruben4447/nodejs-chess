@@ -1,5 +1,7 @@
 {
   "s": <0|1>    // Is game singleplayer?
   "p": ""       // password
-  "d": ""       // Flattened board
+  "wg": <0|1>   // Is it whites go?
+  "d": ""       // Flattened board "<moved?><piece>"
+  "t": ""       // String of taken pieces
 }

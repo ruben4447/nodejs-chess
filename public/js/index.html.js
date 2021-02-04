@@ -18,10 +18,6 @@
   socket.on('game-count', n => {
     document.getElementById('game-count').innerText = n;
   });
-
-  socket.on('game-list', list => {
-    console.log(list);
-  });
   socket.on('connect-game', data => {
     // [data] is token to access game (time-limited)
     console.log("Authorised... Connecting to game.");

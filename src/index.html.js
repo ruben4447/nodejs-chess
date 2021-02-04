@@ -54,21 +54,10 @@ function request_create_game(socket, name, passwd) {
  * @param {socketio.Socket} socket 
  */
 const init = socket => {
-  socket.on('req-game-count', () => {
-    socket.emit('game-count', Object.keys(chess.all).length);
-  });
-
-  socket.on('req-game-list', () => {
-    socket.emit('game-list', Object.keys(chess.all));
-  });
-
+  socket.on('req-game-count', () => socket.emit('game-count', Object.keys(chess.all).length));
   socket.on('req-connect-game', ({ name, passwd, spec }) => request_connect_game(socket, name, atob(passwd), !!spec));
-
   socket.on('req-create-game', ({ name, passwd }) => request_create_game(socket, name, atob(passwd)));
-
-  socket.on('disconnect', () => {
-    console.log(`[${socket.id}] Connection closed.`);
-  });
+  socket.on('disconnect', () => console.log(`[${socket.id}] Connection closed.`));
 };
 
 module.exports = { init, request_connect_game, request_create_game };

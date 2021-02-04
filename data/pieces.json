@@ -15,5 +15,7 @@
     "bishop": "\u265D",
     "knight": "\u265E",
     "pawn": "\u265F"
-  }
+  },
+
+  "empty": " "
 }

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./css/play.css">
   
   <!-- Socket.IO -->
-  <script type="text/javascript" charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
+  <script type="text/javascript" charset="utf-8" src="/socket.io/socket.io.js"></script>
   
   <!-- bootbox -->
   <link rel="stylesheet" href="./css/bootstrap.css">
@@ -27,24 +27,38 @@
       <div class="centre">
         <h2 id='game--name'>unknown</h2>
 
+        <span class='small-info' id='me-colour'></span>
+
+        <span class='small-info'><span id='whos-go'></span>'s Go</span>
+        <br>
+
         <span class='small-info'>Players: <span id='game-players'></span></span>
-        <p class='small-info info-alert' id='game-full'>Game is full</p>
+        <br>
+        <span class='small-info info-alert' id='game-full'>Game is full<br></span>
 
         <span class='small-info'>Spectators: <span id='game-spectators'></span></span>
-        <p class='small-info info-alert' id='am-spectator'>Spectator</p>
+        <br>
+        <span class='small-info info-alert' id='am-spectator'>Spectator<br></span>
 
+        <hr>
         <div class="flex-bottom">
           <button type="button" class="btn btn-primary" id='btn-disconnect'>Leave</button>
           <br><br>
-          <button type="button" class="btn btn-danger" id='btn-delete'>Delete</button>
+          <div id="restricted">
+            <button type="button" class="btn btn-secondary" id='btn-reset'>Reset</button>
+            <br><br>
+            <button type="button" class="btn btn-danger" id='btn-delete'>Delete</button>
+          </div>
         </div>
       </div>
     </div>
   </main>
   
+  <script type="text/javascript" charset="utf-8" src="./js/utils.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/socket.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/dom.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/game.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/chess_fns.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/p5.js"></script>
 </body>
 </html>

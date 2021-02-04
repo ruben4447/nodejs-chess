@@ -13,7 +13,7 @@ io.on('connection', (socket) => {
   // Load listeners used in index.html
   socket.on('from-index.html', () => {
     indexhtml_listeners.init(socket);
-    // indexhtml_listeners.request_connect_game(socket, "test1", "123", true);
+    indexhtml_listeners.request_connect_game(socket, "test1", "123");
   });
 
   // Token from play.html

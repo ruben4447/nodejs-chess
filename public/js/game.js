@@ -4,10 +4,23 @@ const game = {
   _name: undefined, // Game name
   _singleplayer: undefined, // Is this singleplayer (true) or not
   _first: undefined, // First player to join game?
+  _admin: false, // Are we an administrator (set via event grant-admin)
+
+  /** @type {"w" | "b"} */
+  _go: undefined, // Whose go is it?
+
+  /** @type {"w" | "b" | "*"} */
+  _me: undefined, // What colour am i?
+
+  /** Contains chess board (result of chess_fns.chessBoard(...)) */
+  board: undefined,
+  /** Contains string of taken pieces */
+  taken: "",
 
   renderOpts: {
-    swidth: 100,
-    sheight: 100,
+    swidth: 80, // Width of cell
+    sheight: 80, // Height of cell
+    psize: 40, // Font size of pieces
     rows: 8,
     cols: 8,
     start_white: true, // Start with white square?
@@ -15,8 +28,11 @@ const game = {
     col_b: [43, 49, 61], // Black
     col_o: [115, 144, 83], // Colour when cell is hovered over
     col_s: [115, 83, 144], // Colour when cell is selected
+    col_h: [52, 207, 46], // Colour when cell is highlighted
+    pad: 30,
+    takenh: 50, // Height of "taken" section
+    dev: true, // Render developer stuff
   },
-  pieces: undefined, // Object of piece data (contents of /data/pieces.json)
 
   /** Update name of game */
   setName(name) {
@@ -42,29 +58,24 @@ const game = {
     delete game.amSpectator;
   },
 
-  data: undefined,
-
-  /** Get vertical index from row, col */
-  getVertIndex(r, c) { return (r * this.renderOpts.cols) + c; },
-
-  /**
-   * Return colour of piece
-   * @param {string} piece
-   * @return {"w" | "b"} White or black?
-  */
-  pieceColour(piece) {
-    return Object.values(this.pieces.w).indexOf(piece) === -1 ? 'b' : 'w';
-  },
-
   /**
    * Given mouse coords, retern vertical index of position over or -1
    * @param {number} x - x coord
    * @param {number} y - y coord
-   * @return {number} Vertical index (-1 is invalid)
+   * @return {[number, number] | null} Coordinates or [NaN, NaN]
   */
   cellOver(x, y) {
-    const c = Math.floor(x / game.renderOpts.swidth);
-    const r = Math.floor(y / game.renderOpts.sheight);
-    return (c < 0 || c >= game.renderOpts.cols || r < 0 || r > game.renderOpts.rows) ? -1 : game.getVertIndex(r, c);
+    const c = Math.floor((x - this.renderOpts.pad) / game.renderOpts.swidth);
+    const r = Math.floor((y - this.renderOpts.pad) / game.renderOpts.sheight);
+    return (c < 0 || c >= game.renderOpts.cols || r < 0 || r > game.renderOpts.rows) ? sketch.posNull : [r, c];
+  },
+
+  /** Attempt to save game data */
+  save() {
+    let d = game.data.flat().join('');
+    let m = game.moved.flat().join('');
+    socket._.emit('req-save', { d, m, t: game.taken });
   },
 };
+
+let pieces; // Pieces object
