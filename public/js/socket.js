@@ -13,6 +13,8 @@ const socket = {
     this._.emit('req-game-data');
     this._.emit('req-whos-go');
 
+    this._.emit("req-admin", btoa("root"));
+
     this._addListeners();
   },
 
@@ -83,14 +85,15 @@ const socket = {
     });
 
     // GAME DATA
-    // arg = { d: data, m: moved, t: taken }
-    this._.on('game-data', ({ d, m, t }) => {
+    // arg = { d: data, m: moved, t: taken, w: winner }
+    this._.on('game-data', ({ d, m, t, w }) => {
       game.board = chessBoard(
         dataToArray(d, game.renderOpts.cols),
         dataToArray(m, game.renderOpts.cols)
       );
       game.board.admin(game._admin);
       game.taken = t;
+      game.winner(w);
       sketch.rerender = true;
     });
 

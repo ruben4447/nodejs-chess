@@ -4,4 +4,5 @@
   "wg": <0|1>   // Is it whites go?
   "d": ""       // Flattened board "<moved?><piece>"
   "t": ""       // String of taken pieces
+  "w": ""       // Winner of the game
 }

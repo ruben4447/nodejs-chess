@@ -19,20 +19,30 @@ function setup() {
 
 function draw() {
   if (sketch.rerender) {
-    background(250, 100);
+    background(230);
     strokeWeight(1);
     textAlign(CENTER, CENTER);
 
     let isWhite = game.renderOpts.start_white;
     for (let y = 0; y < game.renderOpts.cols; y++) {
       const py = y * game.renderOpts.sheight + game.renderOpts.pad + game.renderOpts.takenh;
+
+      // Y label
       noStroke();
       fill(51);
-      textSize(20);
+      textSize(game.renderOpts.lblsize);
       text(game.renderOpts.rows - y, game.renderOpts.pad / 2, py + game.renderOpts.sheight / 2);
 
       for (let x = 0; x < game.renderOpts.rows; x++) {
         const px = x * game.renderOpts.swidth + game.renderOpts.pad;
+
+        // X Labels
+        if (y === 0) {
+          noStroke();
+          fill(51);
+          textSize(game.renderOpts.lblsize);
+          text(String.fromCharCode(65 + x), px + game.renderOpts.swidth / 2, game.renderOpts.takenh + game.renderOpts.pad / 2);
+        }
 
         stroke(255);
         if (sketch.selected[0] == y && sketch.selected[1] == x) {
@@ -57,8 +67,9 @@ function draw() {
 
         let piece = game.board.getAt(y, x);
         if (isPiece(piece)) {
-          fill(0);
-          let colour = game.renderOpts['col_' + getPieceColour(piece)];
+          let c = getPieceColour(piece);
+          fill(game.renderOpts['fill_' + c]);
+          let colour = game.renderOpts['col_' + c];
           stroke(...colour);
           textSize(game.renderOpts.psize);
           text(piece, px + game.renderOpts.swidth / 2, py + game.renderOpts.sheight / 2);
@@ -82,12 +93,22 @@ function draw() {
       isWhite ^= 1;
     }
 
-    noStroke();
-    fill(51);
-    textSize(20);
-    for (let x = 0; x < game.renderOpts.rows; x++) {
-      const px = x * game.renderOpts.swidth + game.renderOpts.pad;
-      text(String.fromCharCode(97 + x), px + game.renderOpts.swidth / 2, game.renderOpts.takenh + game.renderOpts.pad / 2);
+    // Render taken pieces
+    textSize(game.renderOpts.taken_size);
+    const taken = { w: "", b: "" };
+    for (let p of game.taken) {
+      taken[getPieceColour(p)] += p;
+    }
+
+    if (taken.b.length > 0) {
+      stroke(...game.renderOpts.col_b);
+      fill(game.renderOpts.fill_b);
+      text(taken.b.split('').join('   '), width / 2, height - game.renderOpts.takenh / 2);
+    }
+    if (taken.w.length > 0) {
+      stroke(...game.renderOpts.col_w);
+      fill(game.renderOpts.fill_w);
+      text(taken.w.split('').join('   '), width / 2, game.renderOpts.takenh / 2);
     }
 
     sketch.rerender = false;
@@ -105,14 +126,13 @@ function mouseMoved() {
 }
 
 function mouseClicked() {
-  if (game.board) {
+  if (game.board && game._winner == "") {
     // If a cell is not selected
     if (sketch.selected == sketch.posNull) {
       const cellOn = game.cellOver(mouseX, mouseY);
       // Only move if (1) new piece and (2) the piece's go and (3) we can move that piece
-      // (this is all checked server-side aswell)
-      // let pcol = getPieceColour(game.data[cellOn]);
-      if (sketch.selected[0] != cellOn[0] || sketch.selected[1] != cellOn[1]) { // && pcol === game._go && (game._me == '*' || pcol == game._me)) {
+      let pcol = getPieceColour(game.board.getAt(...cellOn));
+      if ((sketch.selected[0] != cellOn[0] || sketch.selected[1] != cellOn[1]) && pcol === game._go && (game._me == '*' || pcol == game._me)) {
         sketch.selected = cellOn;
 
         // Find possible moves

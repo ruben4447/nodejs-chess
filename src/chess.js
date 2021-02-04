@@ -1,6 +1,7 @@
 const fs = require('fs');
 const btoa = require('btoa'), atob = require('atob');
 const chess_fns = require('../public/js/chess_fns');
+const colStr = chess_fns.colStr;
 
 const saves_path = "data/games/";
 const rows = 8, cols = 8;
@@ -22,6 +23,9 @@ class ChessInstance {
     this._taken = "";
     all[name] = this;
 
+    /** @type {"" | "w" | "b"} */
+    this.winner = "";
+
     /**
      * Array of all connected Connection objects that are players
      * @type {Connection[]}
@@ -35,6 +39,27 @@ class ChessInstance {
     this.conns_s = [];
   }
 
+  declareWinner(winner) {
+    this.winner = winner;
+    if (winner != "") {
+      let loser = winner == 'w' ? 'b' : 'w';
+
+      // "Kill" all of black's pieces
+      let new_data = "";
+      for (let i = 0; i < this._data.length; i++) {
+        const piece = this._data[i];
+        if (piece != pieces.empty && chess_fns.getPieceColour(piece) == loser) {
+          let name = chess_fns.getPieceName(piece);
+          new_data += pieces[winner][name];
+        } else {
+          new_data += piece;
+        }
+      }
+      this._data = new_data;
+      // this._moved = "1".repeat(rows * cols);
+    }
+  }
+
   /**
    * Attempt to move piece from src to dst
    * @param {Connection} conn - COnnection object requesting move
@@ -43,6 +68,9 @@ class ChessInstance {
    * @return {{code: number, msg: string }} Response object (code: (0) OK (1) error (2) illegal move)
    */
   attempt_move(conn, src, dst) {
+    // Game already won?
+    if (this.winner != "") return { code: 1, msg: `This game has been won by ${colStr(this.winner)}` };
+
     // Is spectator?
     if (conn.spectator) return { code: 1, msg: 'Spectators cannot move pieces' };
 
@@ -56,8 +84,6 @@ class ChessInstance {
     if (src[0] == dst[0] && src[1] == dst[1]) return { code: 1, msg: 'Must move to a different location' };
 
     const piece_src = chessBoard.getAt(...src), piece_dst = chessBoard.getAt(...dst);
-    conn.socket.emit('msg', ['Piece source: ', piece_src]);
-    conn.socket.emit('msg', ['Piece dest: ', piece_dst]);
 
     // Piece locations exist?
     if (piece_src == undefined || piece_dst == undefined) return { code: 1, msg: 'Invalid piece locations (out of bounds)' };
@@ -78,15 +104,31 @@ class ChessInstance {
     // let validSpots = chessBoard.getMoves(...src);
     let valid = conn.admin || chessBoard.isValidMove(src, dst);
 
-    const movStr = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
+    let movStr = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
     if (valid) {
       chessBoard.replace(...dst, piece_src);
       chessBoard.replace(...src, pieces.empty);
       this._data = chessBoard.getData();
       this._moved = chessBoard.getMoved();
-      return { code: 0, msg: `Moved ${movStr}` };
+      movStr = colStr(this.go) + ": " + movStr;
+
+      if (piece_dst != pieces.empty) {
+        movStr += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
+        this._taken += piece_dst;
+      }
+
+      if (chess_fns.isPieceA(piece_dst, 'king')) {
+        this.declareWinner(this.go);
+        this.saveToFile();
+      }
+
+      // Toggle turn
+      this.go = this.go == 'b' ? 'w' : 'b';
+
+      return { code: 0, msg: movStr };
     } else {
-      return { code: 2, msg: `Cannot move ${movStr}` };
+      movStr = "Cannot move " + movStr;
+      return { code: 2, msg: movStr };
     }
   }
 
@@ -103,6 +145,29 @@ class ChessInstance {
     );
     let spots = obj.getMoves(row, col);
     return spots;
+  }
+
+  /**
+   * Return object which can be sent to clients, to represent this game's data
+   */
+  getGameData() {
+    return {
+      d: this._data,
+      m: this._moved,
+      t: this._taken,
+      w: this.winner,
+    };
+  }
+
+  /**
+   * Return objects which can be sent to clients, to represent this game's stats
+   */
+  getGameStats() {
+    return {
+      ppl: this.conns.length,
+      full: +this.isFull(),
+      spec: this.conns_s.length,
+    };
   }
 
   /**
@@ -146,7 +211,7 @@ class ChessInstance {
   }
 
   saveToFile() {
-    // Marge this._data and this._moved
+    // Merge this._data and this._moved
     let board = "";
     for (let i = 0; i < this._data.length; i++) board += this._moved[i].toString() + this._data[i];
 
@@ -156,6 +221,7 @@ class ChessInstance {
       wg: +(this.go == 'w'),
       d: board,
       t: this._taken,
+      w: this.winner,
     });
     fs.writeFileSync(this.filepath, data);
   }
@@ -173,6 +239,8 @@ class ChessInstance {
 ChessInstance.newData = (obj) => {
   obj._data = "";
   obj._moved = "";
+  obj.winner = "";
+  obj._taken = "";
 
   obj._data += pieces.b.rook + pieces.b.knight + pieces.b.bishop + pieces.b.queen + pieces.b.king + pieces.b.bishop + pieces.b.knight + pieces.b.rook;
   obj._data += pieces.b.pawn.repeat(cols);
@@ -230,6 +298,7 @@ ChessInstance.fromFile = (name, b64) => {
   }
   obj._taken = data.t;
   obj.go = data.wg ? 'w' : 'b';
+  obj.declareWinner(data.w);
   return obj;
 };
 
@@ -258,13 +327,6 @@ const getPieceColour = piece => {
   if (pieces.b.all.indexOf(piece) !== -1) return 'b';
   return null;
 };
-
-/**
- * Return full colour name for letter
- * @param {"w" | "b"} col - Abbreviated colour
- * @return {"white" | "black"} Colour name
- */
-const colStr = col => col == 'w' ? 'white' : 'black';
 
 /**
  * Object containing all chess games

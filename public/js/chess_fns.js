@@ -10,6 +10,13 @@ const getPieceColour = piece => {
 };
 
 /**
+ * Return full colour name for letter
+ * @param {"w" | "b"} col - Abbreviated colour
+ * @return {"white" | "black"} Colour name
+ */
+const colStr = col => col == 'w' ? 'white' : 'black';
+
+/**
  * Get piece's name
  * @param {string} piece
  * @return {null | string} piece's name
@@ -331,5 +338,5 @@ function chessBoard(data, moved) {
 
 if (typeof module !== 'undefined' && module.exports) {
   const loadPieces = _pieces => typeof pieces == "undefined" && (pieces = _pieces);
-  module.exports = { loadPieces, getPieceColour, isPieceA, chessBoard, dataToArray, getPieceName };
+  module.exports = { loadPieces, getPieceColour, colStr, isPieceA, chessBoard, dataToArray, getPieceName };
 }

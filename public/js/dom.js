@@ -11,7 +11,10 @@ const dom = {
   p_spectators: document.getElementById('game-spectators'),
   p_am_spectator: document.getElementById('am-spectator'),
   p_colour: document.getElementById('me-colour'),
+  p_go_wrapper: document.getElementById('whos-go-wrapper'),
   p_go: document.getElementById('whos-go'),
+  p_winner_wrapper: document.getElementById('game-winner-wrapper'),
+  p_winner: document.getElementById('game-winner'),
 
   h2_gname: document.getElementById('game--name'),
 };

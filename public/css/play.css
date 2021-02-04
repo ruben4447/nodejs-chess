@@ -28,3 +28,8 @@ div#board {
   color: crimson;
   font-weight: bolder;
 }
+
+.info-good {
+  color: forestgreen;
+  font-weight: bolder;
+}

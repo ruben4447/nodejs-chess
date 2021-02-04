@@ -80,7 +80,7 @@ class Connection {
     this.socket.on('req-game-stats', () => this.broadcast_game_stats());
 
     this.socket.on('req-game-data', () => {
-      this.socket.emit('game-data', this.getGameData());
+      this.socket.emit('game-data', this.chess.getGameData());
     });
 
     this.socket.on('req-whos-go', () => {
@@ -91,7 +91,7 @@ class Connection {
       if (this.chess.conns[0] === this) {
         chess.ChessInstance.newData(this.chess);
         this.chess.saveToFile();
-        io.in(this.chess.room_name).emit('game-data', this.getGameData());
+        io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
         io.in(this.chess.room_name).emit('msg', '[!] Reset game');
       } else {
         this.socket.emit('alert', { title: 'Unable to reset game', msg: 'You do not have the permissions required to carry out this action.' });
@@ -111,7 +111,7 @@ class Connection {
               this.chess._taken = taken;
               this.chess.saveToFile();
               io.in(this.chess.room_name).emit('msg', `[${Date.now()}] Saved game data`);
-              io.in(this.chess.room_name).emit('game-data', this.getGameData());
+              io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
             } else {
               this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (t, "' + v + '")' });
             }
@@ -140,8 +140,10 @@ class Connection {
       } else {
         let resp = this.chess.attempt_move(this, data.src, data.dst);
         if (resp.code === 0) {
-          io.in(this.chess.room_name).emit('game-data', this.getGameData()); // Update all clients
-          this.socket.emit('moved', resp.msg);
+          const room = io.in(this.chess.room_name);
+          room.emit('game-data', this.chess.getGameData());
+          room.emit('whos-go', this.chess.go);
+          room.emit('moved', resp.msg);
         } else {
           let title = "Unable to move piece";
           if (resp.code == 2) title = "Illegal Move";
@@ -155,11 +157,7 @@ class Connection {
    * Send game-stats event to all players/spectators
    */
   broadcast_game_stats() {
-    io.in(this.chess.room_name).emit('game-stats', {
-      ppl: this.chess.conns.length,
-      full: +this.chess.isFull(),
-      spec: this.chess.conns_s.length,
-    });
+    io.in(this.chess.room_name).emit('game-stats', this.chess.getGameStats());
   }
 
   /** Broadcast whose go it is */
@@ -173,10 +171,6 @@ class Connection {
   remove_token() {
     console.log(`Connection.remove_token: removing token ${this.t}`);
     access_token.remove(this.t);
-  }
-
-  getGameData() {
-    return { d: this.chess._data, m: this.chess._moved, t: this.chess._taken };
   }
 }
 
