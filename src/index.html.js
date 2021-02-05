@@ -1,10 +1,9 @@
-/***
- * All listeners for index.html.js
+/**
+ * Event listeners for index.html.js
  */
 
 const chess = require('./chess.js');
 const access_token = require('./access_token.js');
-const { connected_clients } = require('./server.js');
 const atob = require('atob');
 
 /**
@@ -18,7 +17,7 @@ function request_connect_game(socket, name, passwd, spec) {
   const title = 'Unable to connect to game';
   if (chess.all[name]) {
     let obj = chess.all[name];
-    if (!obj.isFull() || spec) {
+    if (obj.conns.length !== obj.maxConnections || spec) {
       if (spec && obj.conns.length == 0) {
         socket.emit('alert', { title, msg: 'Cannot spectate empty game' });
       } else if (spec && !obj._allowSpectators) {
@@ -64,11 +63,6 @@ const init = socket => {
   socket.on('req-game-count', () => socket.emit('game-count', Object.keys(chess.all).length));
   socket.on('req-connect-game', ({ name, passwd, spec }) => request_connect_game(socket, name, atob(passwd), !!spec));
   socket.on('req-create-game', ({ name, passwd }) => request_create_game(socket, name, atob(passwd)));
-  socket.on('disconnect', () => {
-    let i = connected_clients.indexOf(socket);
-    if (i != -1) connected_clients.splice(i, 1);
-    console.log(`[${socket.id}] Connection closed.`);
-  });
 };
 
 module.exports = { init, request_connect_game, request_create_game };

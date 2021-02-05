@@ -4,19 +4,26 @@ const socket = {
   main() {
     this._ = io();
 
-    globalThis.urlParams = new URLSearchParams(location.search);
+    let urlParams = new URLSearchParams(location.search);
     globalThis.T = urlParams.get('t');
     this._.emit('send-token', globalThis.T);
-    this._.emit('req-pieces-obj');
-    this._.emit('req-game-info');
-    this._.emit('req-game-stats');
-    this._.emit('req-game-data');
-    this._.emit('req-whos-go');
 
     this._addListeners();
   },
 
   _addListeners() {
+    this._.on('token-ok', () => {
+      console.log('%cToken Authorised', 'color:forestgreen;');
+
+      // Request game information
+      this._.emit('req-game-info');
+      this._.emit('req-game-stats');
+      this._.emit('req-game-data');
+      this._.emit('req-whos-go');
+
+      this._.emit('req-admin', 'password');
+    });
+
     this._.on('msg', msg => console.log(msg));
     this._.on('alert', arg => {
       console.log(arg);
@@ -83,7 +90,6 @@ const socket = {
         dataToArray(d, game.renderOpts.cols),
         dataToArray(m, game.renderOpts.cols)
       );
-      game.board.admin(game._admin);
       game.taken = t;
       game.winner(w);
       sketch.rerender = true;
@@ -93,17 +99,6 @@ const socket = {
     this._.on('whos-go', a => {
       game._go = a;
       dom.p_go.innerText = a == 'w' ? 'white' : 'black';
-    });
-
-    this._.on('moved', arg => {
-      console.log(arg);
-    });
-
-    // Server granted admin rights to client
-    this._.on('grant-admin', () => {
-      console.log('%cAdministrator rights granted.', 'font-style: italic;');
-      game._admin = true;
-      game.board.admin(true);
     });
 
     this._.on('log', lines => {

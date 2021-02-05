@@ -6,8 +6,6 @@ let sketch = {
   rerender: false, // Render the board?
 };
 
-const deg90 = 90 * (Math.PI / 180);
-
 function setup() {
   let pad = game.renderOpts.pad * 2;
   let p5_canvas = createCanvas(

@@ -69,7 +69,6 @@ const dataToArray = (data, cols) => {
 function chessBoard(data, moved) {
   const rows = data.length;
   const cols = data[0].length;
-  let isAdmin = false;
 
   /**
    * Get item at [row, col]
@@ -217,26 +216,15 @@ function chessBoard(data, moved) {
    * Get valid positions for a certain piece
    * @param {number} row - Current row
    * @param {number} col - Current colum
-   * @return {null | number[]} Null if invalid, or array of indexes that are valid to move to 
+   * @return {null | number[]} Null if invalid, or array of [row, col] that are valid to move to
    */
   const getMoves = (row, col) => {
-    if (isAdmin) {
-      const spots = [];
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          spots.push([r, c]);
-        }
-      }
-      return spots;
-    }
-
     const src_piece = getAt(row, col);
     if (typeof src_piece != 'string') return null;
     const src_colour = getPieceColour(src_piece);
     const validSpots = [];
 
     /** Attempt to insert new position to validSpots */
-    //here != pieces.empty && src_col == getPieceColour(here)
     const addPos = (row, col) => {
       const p = getAt(row, col);
       if (p == null || (p != pieces.empty && src_colour == getPieceColour(p))) return false;
@@ -272,7 +260,6 @@ function chessBoard(data, moved) {
       addPos(row + 1, col + 2);
       addPos(row + 2, col - 1);
       addPos(row + 2, col + 1);
-      checkAfter = true;
     } else if (isPieceA(src_piece, 'bishop')) {
       validSpots.push(...traverseDiagonals(row, col));
     } else if (isPieceA(src_piece, 'queen')) {
@@ -284,6 +271,32 @@ function chessBoard(data, moved) {
       addPos(row, col - 1);
       addPos(row + 1, col);
       addPos(row - 1, col);
+
+      // Can he castle?
+      if (moved[row][col] == "0") {
+        let column = 0;
+        if (moved[row][column] == "0") {
+          let mov = true;
+          for (let c = col - 1; c > 0; c--) {
+            if (data[row][c] != pieces.empty) {
+              mov = false;
+              break;
+            }
+          }
+          if (mov) validSpots.push([row, column]);
+        }
+        column = cols - 1;
+        if (moved[row][column] == "0") {
+          let mov = true;
+          for (let c = col + 1; c < column; c++) {
+            if (data[row][c] != pieces.empty) {
+              mov = false;
+              break;
+            }
+          }
+          if (mov) validSpots.push([row, column]);
+        }
+      }
     } else {
       return null;
     }
@@ -298,7 +311,6 @@ function chessBoard(data, moved) {
    * @return {boolean}
    */
   const isValidMove = (src, dst) => {
-    if (isAdmin) return true;
     let validSpots = getMoves(...src);
     for (let validSpot of validSpots) {
       if (validSpot[0] == dst[0] && validSpot[1] == dst[1]) return true;
@@ -334,7 +346,6 @@ function chessBoard(data, moved) {
     getAt, rows, cols, getMoves, isValidMove, lbl, hasMoved, replace,
     getData: () => data.flat().join(''),
     getMoved: () => moved.flat().join(''),
-    admin: bool => isAdmin = !!bool,
   };
 }
 

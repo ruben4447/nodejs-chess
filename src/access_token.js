@@ -1,5 +1,5 @@
 const uuid = require('uuid');
-const chess = require('./chess.js');
+const colour = require('./colour.js');
 
 /**
  * Store access tokens which allow access to certain games
@@ -10,7 +10,7 @@ const access_tokens = {};
 
 /**
  * Create new access token
- * @param {ChessInstance} game - Game instance to create token for
+ * @param {chess.ChessInstance} game - Game instance to create token for
  * @param {boolean} spec - Join game as spectator?
  * @return {string} access token
  */
@@ -18,12 +18,12 @@ const create = (game, spec) => {
   const token = uuid.v4();
   let timer = setTimeout(() => {
     delete access_tokens[token];
-    console.log(`Removed access token for game '${game._name}' : ${token} (spectator: ${spec})`);
+    // console.log(`${colour.fgRed} Access token for game ${colour.fgYellow}'${game._name}'${colour.fgRed} expired : ${colour.fgYellow}${token}${colour.reset}`);
   }, 1500);
 
   access_tokens[token] = [game, timer, null, spec];
 
-  console.log(`Added access token for game '${game._name}' : ${token} (spectator: ${spec})`);
+  // console.log(`${colour.fgGreen}Created access token for game ${colour.fgYellow}'${game._name}'${colour.fgGreen} : ${colour.fgYellow}${token}${colour.reset}`);
   return token;
 };
 
@@ -47,13 +47,13 @@ const is_valid = (token, socket) => {
     if (info[2] == null) {
       info[2] = socket;
       clearTimeout(info[1]); // Cancel timer
-      console.log(`Access token for game '${info[0]._name}' consumed : ${token}`);
+      // console.log(`Access token for game '${info[0]._name}' consumed : ${token}`);
       return true;
     } else {
       return info[2].id === socket.id;
     }
   } else {
-    console.log(`access_token.is_valid: token ${token} does not exist`);
+    // console.log(`access_token.is_valid: ${colour.fgRed}token ${colour.fgYellow}${token}${colour.fgRed} does not exist${colour.reset}`);
     return false;
   }
 };

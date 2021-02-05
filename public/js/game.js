@@ -2,7 +2,6 @@ const game = {
   _name: undefined, // Game name
   _singleplayer: undefined, // Is this singleplayer (true) or not
   host: false, // Are we host of the game?
-  _admin: false, // Are we an administrator (set via event grant-admin)
 
   /** @type {"" | "w" | "b"} */
   _winner: "",

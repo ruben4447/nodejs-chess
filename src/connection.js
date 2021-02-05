@@ -1,12 +1,9 @@
 const access_token = require('./access_token.js');
 const { io } = require('./server.js');
 const chess = require('./chess.js');
-const chess_fns = require('../public/js/chess_fns.js')
 const btoa = require('btoa');
 
-chess_fns.loadPieces(chess.pieces);
-
-const ADMIN_PASSWD = btoa("root");
+const ADMIN_PASSWD = "password";
 
 /***
  * Manages connection from play.html
@@ -25,59 +22,25 @@ class Connection {
     this.colour = undefined; // Colour 'w' or 'b'. Assigned by ChessInstance object (by add_conn)
     this.admin = undefined; // Requires request
 
-    console.log(`${t}: created connection (SID: ${this.socket.id})`);
-    this.chess.add_conn(this);
-    this.socket.join(this.chess.room_name);
-    this.socket.to(this.chess.room_name).emit('msg', `A new ${this.spectator ? 'spectator' : 'player'} joined.`);
-    this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats());
-    this.isHost = this === this.chess.conns[0];
-    this.updateLog();
-
     this._initListeners();
-  }
-
-  /**
-   * Wrap up connectiony stuff
-   */
-  terminate() {
-    this.socket.to(this.chess.room_name).emit('msg', `A ${this.spectator ? 'spectator' : 'player'} left.`); // Leaving message
-    this.remove_token(); // Remove game access token
-    this.chess.remove_conn(this); // Remove connection to ChessInstance
-    this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats()); // Update clients on stats
-
-    // If host, kick out everyone else as well
-    if (this.isHost) {
-      this.socket.to(this.chess.room_name).emit('redirect', '/index.html?e=host_left');
-    }
-
-    this.socket.leave(this.chess.room_name); // Leave room for chess game
+    this.open();
   }
 
   _initListeners() {
-    this.socket.on('disconnect', () => {
-      this.terminate();
-      console.log(`Socket ${this.socket.id}: closing connection.`);
-    });
+    this.socket.on('disconnect', () => this.close());
 
     // Request to be admin
     // Can only try once per connection
     this.socket.on('req-admin', passwd => {
-      if (!this.spectator && this.admin == undefined && passwd == ADMIN_PASSWD) {
-        this.admin = true;
-        this.socket.emit('grant-admin');
-      } else {
-        this.admin = false;
-      }
+      let granted = this.grantAdminRight(passwd);
+      if (granted) this.socket.emit('msg', 'Administrator right granted.');
     });
-
-    this.socket.on('req-pieces-obj', () => this.socket.emit('pieces-obj', chess.pieces));
 
     // ! HOST ONLY
     this.socket.on('req-delete-game', () => {
       if (this.isHost) {
-        io.in(this.chess.room_name).emit('redirect', '/index.html?e=deleted');
         this.chess.del();
-        io.emit('req-game-count');
+        io.in(this.chess.room_name).emit('redirect', '/index.html?e=deleted');
       } else {
         this.socket.emit('alert', { title: 'Unable to delete game', msg: 'You do not have the permissions required to carry out this action [host].' });
       }
@@ -95,15 +58,11 @@ class Connection {
       this.socket.emit('game-info', obj);
     });
 
-    this.socket.on('req-game-stats', () => this.broadcast_game_stats());
+    this.socket.on('req-game-stats', () => this.socket.emit('game-stats', this.chess.getGameStats()));
 
-    this.socket.on('req-game-data', () => {
-      this.socket.emit('game-data', this.chess.getGameData());
-    });
+    this.socket.on('req-game-data', () => this.socket.emit('game-data', this.chess.getGameData()));
 
-    this.socket.on('req-whos-go', () => {
-      this.socket.emit('whos-go', this.chess.go);
-    });
+    this.socket.on('req-whos-go', () => this.socket.emit('whos-go', this.chess.go));
 
     // ! HOST ONLY
     this.socket.on('req-reset-game', () => {
@@ -155,7 +114,7 @@ class Connection {
     this.socket.on('req-move', data => {
       if (!Array.isArray(data.dst) || typeof data.dst[0] != 'number' || typeof data.dst[1] != 'number' ||
         !Array.isArray(data.src) || typeof data.src[0] != 'number' || typeof data.src[1] != 'number') {
-        this.socket.emit('_error', 'Bad Request (req-move)');
+        this.socket.emit('_error', 'Bad Request (request to move)');
       } else {
         let resp = this.chess.attempt_move(this, data.src, data.dst);
         if (resp.code === 0) {
@@ -166,7 +125,6 @@ class Connection {
           const room = io.in(this.chess.room_name);
           room.emit('game-data', this.chess.getGameData());
           room.emit('whos-go', this.chess.go);
-          room.emit('moved', resp.msg);
         } else {
           let title = "Unable to move piece";
           if (resp.code == 2) title = "Illegal Move";
@@ -224,29 +182,62 @@ class Connection {
     });
   }
 
+  /** Open connection to client-side */
+  open() {
+    // console.log(`Connection.open: called using token ${this.t} with socket ${this.socket.id}`);
+    this.chess.add_conn(this);
+    this.socket.join(this.chess.room_name); // Join socket communication room for game
+    this.socket.to(this.chess.room_name).emit('msg', `A new ${this.spectator ? 'spectator' : 'player'} joined.`); // Alert everyone of new connection
+    this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats()); // Update stats for everyone else
+
+    // Let client know that they're connected, and send some base information
+    this.socket.emit('token-ok');
+    this.socket.emit('pieces-obj', chess.pieces);
+  }
+
   /**
-   * Send game-stats event to all players/spectators
+   * Update game-log for connection
    */
-  broadcast_game_stats() {
-    io.in(this.chess.room_name).emit('game-stats', this.chess.getGameStats());
-  }
-
-  /** Broadcast whose go it is */
-  broadcast_go() {
-    io.in(this.chess.room_name).emit('whos-go', this.chess.go);
-  }
-
-  /** Update chess log */
   updateLog() {
     this.socket.emit('log', this.chess._log);
+  }
+
+  /**
+   * Request to have administrator (super user) rights
+   * @param {string} passwd - Administrator password
+   * @return {boolean} Granted?
+   */
+  grantAdminRight(passwd) {
+    if (!this.spectator && this.admin == undefined && passwd == ADMIN_PASSWD) {
+      this.admin = true;
+      return true;
+    } else {
+      this.admin = false;
+      return false;
+    }
   }
 
   /**
    * Remove access token from connection
    */
   remove_token() {
-    console.log(`Connection.remove_token: removing token ${this.t}`);
+    // console.log(`Connection.remove_token: removing token ${this.t}`);
     access_token.remove(this.t);
+  }
+
+  /** Called when about to disconnect; cut loose ends */
+  close() {
+    this.socket.to(this.chess.room_name).emit('msg', `A ${this.spectator ? 'spectator' : 'player'} left.`); // Leaving message
+    this.remove_token(); // Remove game access token
+    this.chess.remove_conn(this); // Remove connection to ChessInstance
+    this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats()); // Update clients on stats
+
+    // If host, kick out everyone else as well
+    if (this.isHost) {
+      this.socket.to(this.chess.room_name).emit('redirect', '/index.html?e=host_left');
+    }
+
+    this.socket.leave(this.chess.room_name); // Leave room for chess game
   }
 }
 

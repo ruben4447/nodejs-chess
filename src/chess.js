@@ -17,7 +17,7 @@ class ChessInstance {
      * Whose go is it?
      * @type {"w" | "b"}
      */
-    this.go = '';
+    this.go = 'w';
 
     this._data = "";
     this._moved = "";
@@ -57,11 +57,6 @@ class ChessInstance {
 
   get maxConnections() { return this._singleplayer ? 1 : 2; }
 
-  // Is game full? (can we connect to it?)
-  isFull() {
-    return this.conns.length == this.maxConnections;
-  }
-
   declareWinner(winner) {
     if (winner == " ") winner = "";
     this.winner = winner;
@@ -81,7 +76,6 @@ class ChessInstance {
         }
       }
       this._data = new_data;
-      // this._moved = "1".repeat(rows * cols);
     }
   }
 
@@ -115,7 +109,7 @@ class ChessInstance {
     // Moving to same location?
     if (src[0] == dst[0] && src[1] == dst[1]) return { code: 1, msg: 'Must move to a different location' };
 
-    const piece_src = chessBoard.getAt(...src), piece_dst = chessBoard.getAt(...dst);
+    let piece_src = chessBoard.getAt(...src), piece_dst = chessBoard.getAt(...dst);
 
     // Piece locations exist?
     if (piece_src == undefined || piece_dst == undefined) return { code: 1, msg: 'Invalid piece locations (out of bounds)' };
@@ -124,39 +118,53 @@ class ChessInstance {
     if (!chess_fns.isPiece(piece_src)) return { code: 1, msg: 'Must be moving a piece' };
 
     // Are we allowed to be moving this piece? (are colours OK?)
-    let src_colour = chess_fns.getPieceColour(piece_src);
-    if (src_colour != this.go) return { code: 2, msg: `Trying to move ${colStr(src_colour)} piece on ${colStr(this.go)}'s go` };
+    let src_colour = chess_fns.getPieceColour(piece_src), dst_colour = chess_fns.getPieceColour(piece_dst);
+
+    if (src_colour != this.go) return { code: 1, msg: `Trying to move ${colStr(src_colour)} piece on ${colStr(this.go)}'s go` };
     if (conn.colour != '*' && src_colour != conn.colour) return { code: 2, msg: `${colStr(conn.colour)} player trying to move ${colStr(src_colour)} piece` };
 
-    // Cannot move onto self!
-    let dst_colour = chess_fns.getPieceColour(piece_dst);
-    if (src_colour == dst_colour) return { code: 2, msg: `Cannot take own piece (${colStr(dst_colour)})<br>(Castling not supported)` };
-
     // Check if dst is valid spot
-    // let validSpots = chessBoard.getMoves(...src);
     let valid = conn.admin || chessBoard.isValidMove(src, dst);
 
     let movStr = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
     if (valid) {
+      let logLine = `${piece_src} ${chessBoard.lbl(...src)} &rarr; ${chessBoard.lbl(...dst)}`;
+      let replaceWith = pieces.empty; // What to replace src_piece with
+
+      // Are we castling
+      if (src_colour == dst_colour && piece_src == pieces[src_colour].king && piece_dst == pieces[dst_colour].rook && !chessBoard.hasMoved(...src) && !chessBoard.hasMoved(...dst)) {
+        replaceWith = pieces[dst_colour].rook;
+        movStr += ' (castled)';
+      } else {
+        // ==== NORMAL MOVE
+
+        // Taken a piece?
+        if (piece_dst != pieces.empty) {
+          movStr += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
+          this._taken += piece_dst;
+          logLine += ' ' + piece_dst;
+        }
+
+        // Won game?
+        if (chess_fns.isPieceA(piece_dst, 'king')) {
+          this.declareWinner(this.go);
+        }
+
+        // Pawn reached end?
+        if ((piece_src == pieces.w.pawn && dst[0] == 0) || (piece_src == pieces.b.pawn && dst[0] == rows - 1)) {
+          piece_src = pieces[src_colour].queen;
+          movStr += `, turned into Queen`;
+        }
+      }
+
+      // Actually move pieces
       this.recordState();
       chessBoard.replace(...dst, piece_src);
-      chessBoard.replace(...src, pieces.empty);
+      chessBoard.replace(...src, replaceWith);
       this._data = chessBoard.getData();
       this._moved = chessBoard.getMoved();
 
-      let logLine = `${piece_src} ${chessBoard.lbl(...src)} &rarr; ${chessBoard.lbl(...dst)}`;
-
-      if (piece_dst != pieces.empty) {
-        movStr += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
-        this._taken += piece_dst;
-        logLine += ' ' + piece_dst;
-      }
       this.writeLog(logLine, movStr);
-
-      // Won game?
-      if (chess_fns.isPieceA(piece_dst, 'king')) {
-        this.declareWinner(this.go);
-      }
 
       return { code: 0, msg: movStr };
     } else {
@@ -269,10 +277,11 @@ class ChessInstance {
    * @param {Connection} conn
    */
   add_conn(conn) {
-    if (this.isFull() && !conn.spectator) throw `Chess.add_conn: Chess game '${this._name}' is full`;
+    if (this.conns.length == this.maxConnections && !conn.spectator) throw `Chess.add_conn: Chess game '${this._name}' is full`;
     if (conn.spectator) {
       this.conns_s.push(conn);
     } else {
+      conn.isHost = this.conns.length === 0; // To-be first connection (and therefore host) ?
       this.conns.push(conn);
       conn.colour = this._singleplayer ? '*' : (this.conns.length == 1 ? 'w' : 'b'); // Multiplayer: First player is white
     }
@@ -408,16 +417,28 @@ const disassembleDataString = string => {
   return parts;
 };
 
+const loadFiles = () => {
+  // Load pieces
+
+
+  // Load files
+  let files = fs.readdirSync(saves_path);
+  files.forEach(file => {
+    let name = file.split('.')[0];
+    ChessInstance.fromFile(name, true);
+  });
+};
+
 /**
  * Object containing all chess games
  * @type {{[name: string]: ChessInstance}}
  */
 const all = {};
 
+// :: /data/pieces.json
 const pieces = JSON.parse(fs.readFileSync('data/pieces.json'));
 pieces.w.all = Object.values(pieces.w);
 pieces.b.all = Object.values(pieces.b);
 chess_fns.loadPieces(pieces);
 
-
-module.exports = { ChessInstance, saves_path, all, pieces, rows, cols, };
+module.exports = { ChessInstance, saves_path, all, pieces, rows, cols, loadFiles };
