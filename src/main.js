@@ -1,4 +1,4 @@
-const { io } = require('./server.js');
+const { io, connected_clients } = require('./server.js');
 
 const fs = require('fs');
 
@@ -9,11 +9,14 @@ const connection = require('./connection.js');
 
 io.on('connection', (socket) => {
   console.log(`Connection made: ${socket.id}`);
+  connected_clients.push(socket);
+  io.sockets.emit('ppl-online', connected_clients.length);
 
   // Load listeners used in index.html
   socket.on('from-index.html', () => {
     indexhtml_listeners.init(socket);
-    indexhtml_listeners.request_connect_game(socket, "test1", "123");
+    // * TEMPORARY * //
+    // indexhtml_listeners.request_connect_game(socket, "test1", "123");
   });
 
   // Token from play.html
@@ -33,10 +36,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('req-pieces-obj', () => socket.emit('pieces-obj', chess.pieces));
-
   // Rebound event from client back to client
   socket.on('rebound-event', o => socket.emit(o[0], o[1]));
+
+  socket.on('disconnect', () => {
+    let i = connected_clients.indexOf(socket);
+    if (i != -1) connected_clients.splice(i, 1);
+    io.sockets.emit('ppl-online', connected_clients.length);
+  });
 });
 
 // Load all files from chess.saves_data

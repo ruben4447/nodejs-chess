@@ -13,8 +13,6 @@ const socket = {
     this._.emit('req-game-data');
     this._.emit('req-whos-go');
 
-    this._.emit("req-admin", btoa("root"));
-
     this._addListeners();
   },
 
@@ -40,16 +38,20 @@ const socket = {
       window.location.href = '/index.html?e=invalid_t';
     });
 
-    this._.on('deleted-game', () => window.location.href = '/index.html?e=deleted');
-
     this._.on('pieces-obj', obj => pieces = obj);
 
     // GAME INFO
     this._.on('game-info', x => {
       game.setName(atob(x.name));
       game._singleplayer = !!x.s;
-      game._first = !!x.first;
-      if (!x.first) dom.div_restricted.remove();
+      game._host = !!x.host;
+      if (x.host) {
+        document.title += ' (host)';
+        dom.input_allow_spectators.checked = x.aspec;
+      } else {
+        dom.div_restricted.remove();
+        dom.input_allow_spectators.remove();
+      }
       game.amSpectator(x.spec);
       game._colour = x.col;
 
@@ -64,17 +66,7 @@ const socket = {
     });
 
     // GAME STATS
-    this._.on('game-stats', x => {
-      if (x.full) {
-        dom.p_game_full.removeAttribute('hidden');
-      } else {
-        dom.p_game_full.setAttribute('hidden', 'hidden');
-      }
-      game._ppl = +x.ppl;
-      dom.p_players.innerText = x.ppl;
-      game._spectators = +x.spec;
-      dom.p_spectators.innerText = x.spec;
-    });
+    this._.on('game-stats', x => game.updateStats(x));
 
     this._.on('validated-data', obj => {
       if (obj.valid) {
@@ -114,10 +106,16 @@ const socket = {
       game.board.admin(true);
     });
 
-    this._.on('highlight-positions', x => {
-      sketch.highlighted = x;
-      sketch.rerender = true;
+    this._.on('log', lines => {
+      let content = '';
+      for (let line of lines) {
+        let at = formatDate(line[2]);
+        content = `<span class="log-line" title="${line[1]} @ ${at}">${line[0]}</span><br>` + content;
+      }
+      dom.div_log.innerHTML = content;
     });
+
+    this._.on('redirect', url => window.location.href = url);
   }
 };
 

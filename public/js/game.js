@@ -1,9 +1,7 @@
 const game = {
-  _ppl: undefined, // How many people are connected to the game?
-  _spectators: undefined, // How many spectators are connected to the game?
   _name: undefined, // Game name
   _singleplayer: undefined, // Is this singleplayer (true) or not
-  _first: undefined, // First player to join game?
+  host: false, // Are we host of the game?
   _admin: false, // Are we an administrator (set via event grant-admin)
 
   /** @type {"" | "w" | "b"} */
@@ -38,7 +36,7 @@ const game = {
     col_h: [52, 207, 46], // Colour when cell is highlighted
     lblsize: 17, // Font size of labels
     pad: 30,
-    takenh: 40, // Height of "taken" section
+    takenw: 40, // Width of "taken" section
     taken_size: 30, // Font size of taken pieces
     dev: true, // Render developer stuff
   },
@@ -54,6 +52,17 @@ const game = {
   /** Get name of game */
   getName() { return this._name; },
 
+  /** Update game stats. Called by game-stats event. */
+  updateStats(obj) {
+    let full = +obj.ppl == +obj.max;
+    dom.p_players.innerHTML = `&#128372; ${obj.ppl} / ${obj.max}`;
+    dom.p_players.classList[full ? 'add' : 'remove']('info-alert');
+    dom.p_players.setAttribute('title', `${obj.ppl} Players ${full ? '(Full)' : ''}`);
+
+    dom.p_spectators.innerHTML = `&#128065; ${obj.spec}`;
+    dom.p_spectators.setAttribute('title', `${obj.spec} Watching`);
+  },
+
   /** Is client a spectator? */
   amSpectator(bool) {
     if (bool) {
@@ -61,8 +70,8 @@ const game = {
       mouseClicked = () => { };
 
       document.title += ' (spectating)';
-    } else {
-      dom.p_am_spectator.remove();
+      dom.p_above_log.innerHTML = '&#128065; You are a spectator';
+      dom.p_above_log.classList.add('small-info');
     }
     delete game.amSpectator;
   },
@@ -74,16 +83,18 @@ const game = {
    * @return {[number, number] | null} Coordinates or [NaN, NaN]
   */
   cellOver(x, y) {
-    const c = Math.floor((x - this.renderOpts.pad) / game.renderOpts.swidth);
-    const r = Math.floor((y - this.renderOpts.pad - this.renderOpts.takenh) / game.renderOpts.sheight);
+    const c = Math.floor((x - this.renderOpts.pad - this.renderOpts.takenw) / game.renderOpts.swidth);
+    const r = Math.floor((y - this.renderOpts.pad) / game.renderOpts.sheight);
     return (c < 0 || c >= game.renderOpts.cols || r < 0 || r > game.renderOpts.rows) ? sketch.posNull : [r, c];
   },
 
   /** Attempt to save game data */
   save() {
-    let d = game.data.flat().join('');
-    let m = game.moved.flat().join('');
-    socket._.emit('req-save', { d, m, t: game.taken });
+    socket._.emit('req-save', {
+      d: game.board.getData(),
+      m: game.board.getMoved(),
+      t: game.taken
+    });
   },
 
   /** Set winner of game */

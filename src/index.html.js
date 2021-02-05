@@ -4,6 +4,7 @@
 
 const chess = require('./chess.js');
 const access_token = require('./access_token.js');
+const { connected_clients } = require('./server.js');
 const atob = require('atob');
 
 /**
@@ -18,12 +19,18 @@ function request_connect_game(socket, name, passwd, spec) {
   if (chess.all[name]) {
     let obj = chess.all[name];
     if (!obj.isFull() || spec) {
-      if (passwd == obj._passwd) {
-        // Generate unique access token
-        const token = access_token.create(obj, spec);
-        socket.emit('connect-game', token);
+      if (spec && obj.conns.length == 0) {
+        socket.emit('alert', { title, msg: 'Cannot spectate empty game' });
+      } else if (spec && !obj._allowSpectators) {
+        socket.emit('alert', { title, msg: `Spectators are disabled for this game` });
       } else {
-        socket.emit('alert', { title, msg: `Password is incorrect` });
+        if (passwd == obj._passwd) {
+          // Generate unique access token
+          const token = access_token.create(obj, spec);
+          socket.emit('connect-game', token);
+        } else {
+          socket.emit('alert', { title, msg: `Password is incorrect` });
+        }
       }
     } else {
       socket.emit('alert', { title, msg: `Game '${name}' is full` });
@@ -57,7 +64,11 @@ const init = socket => {
   socket.on('req-game-count', () => socket.emit('game-count', Object.keys(chess.all).length));
   socket.on('req-connect-game', ({ name, passwd, spec }) => request_connect_game(socket, name, atob(passwd), !!spec));
   socket.on('req-create-game', ({ name, passwd }) => request_create_game(socket, name, atob(passwd)));
-  socket.on('disconnect', () => console.log(`[${socket.id}] Connection closed.`));
+  socket.on('disconnect', () => {
+    let i = connected_clients.indexOf(socket);
+    if (i != -1) connected_clients.splice(i, 1);
+    console.log(`[${socket.id}] Connection closed.`);
+  });
 };
 
 module.exports = { init, request_connect_game, request_create_game };

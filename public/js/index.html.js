@@ -25,6 +25,9 @@
   });
   socket.on('redirect', url => location.href = url);
 
+  const ppl_online = document.getElementById('ppl-online');
+  socket.on('ppl-online', n => ppl_online.innerText = n);
+
   const btn_connect = document.getElementById('btn-connect');
   const btn_create = document.getElementById('btn-create');
 
@@ -96,10 +99,16 @@
           socket.emit('rebound-event', ['_error', `Invalid game token`]);
           break;
         case 'left':
-          socket.emit('rebound-event', ['msg', `Left game`]);
+          console.log('You left the game');
+          break;
+        case 'host_left':
+          socket.emit('rebound-event', ['alert', { title: 'Connection Closed', msg: 'Host left the game.' }]);
           break;
         case 'deleted':
-          socket.emit('rebound-event', ['alert', { title: 'Game Disconnected', msg: 'The game was deleted' }]);
+          socket.emit('rebound-event', ['alert', { title: 'Connection Closed', msg: 'The game was deleted.' }]);
+          break;
+        case 'no_spectator':
+          socket.emit('rebound-event', ['alert', { title: 'Connection Closed', msg: 'Spectators are disabled for this game.' }]);
           break;
         default:
           socket.emit('rebound-event', ['_error', `Unknown error occured (${e})`]);

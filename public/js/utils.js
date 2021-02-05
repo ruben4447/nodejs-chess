@@ -16,3 +16,9 @@ const getVertIndex = (r, c) => (r * game.renderOpts.cols) + c;
  * @return {[number, number]} [row, col]
 */
 const getRowCol = i => ([parseInt(i / game.renderOpts.cols), i % game.renderOpts.cols]);
+
+const formatDate = ms => {
+  const D = new Date(ms);
+  return `${D.getDate().toString().padStart(2, '0')}/${D.getMonth().toString().padStart(2, '0')}/${D.getFullYear()} ${D.getHours().toString().padStart(2, '0')}:${D.getMinutes().toString().padStart(2, '0')}:${D.getSeconds().toString().padStart(2, '0')
+    }`;
+};

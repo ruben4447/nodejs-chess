@@ -6,6 +6,7 @@
   <title>Game | Play</title>
   <link rel="stylesheet" href="./css/master.css">
   <link rel="stylesheet" href="./css/play.css">
+  <link rel="shortcut icon" href="/favicon.png" type="image/png" />
   
   <!-- Socket.IO -->
   <script type="text/javascript" charset="utf-8" src="/socket.io/socket.io.js"></script>
@@ -21,7 +22,10 @@
 </head>
 <body>
   <main class='flex'>
-    <div class='panel'></div>
+    <div class='panel'>
+      <span id='above-log'></span>
+      <div id='game-log'></div>
+    </div>
     <div id='canvas-wrapper'></div>
     <div class='panel flex'>
       <div class="centre">
@@ -33,19 +37,19 @@
 
         <span class='small-info info-good' id='game-winner-wrapper'>Winner: <span id='game-winner'></span><br></span>
 
-        <span class='small-info'>Players: <span id='game-players'></span></span>
+        <span class='small-info'><span id='game-players'></span></span>
         <br>
-        <span class='small-info info-alert' id='game-full'>Game is full<br></span>
 
-        <span class='small-info'>Spectators: <span id='game-spectators'></span></span>
+        <span class='small-info'><span id='game-spectators'></span> <input type='checkbox' id='allow-spectators' /></span>
         <br>
-        <span class='small-info info-alert' id='am-spectator'>Spectator<br></span>
 
         <hr>
         <div class="flex-bottom">
           <button type="button" class="btn btn-primary" id='btn-disconnect'>Leave</button>
           <br><br>
           <div id="restricted">
+            <button type="button" class="btn btn-secondary" id='btn-restore'>Undo</button>
+            <br><br>
             <button type="button" class="btn btn-secondary" id='btn-reset'>Reset</button>
             <br><br>
             <button type="button" class="btn btn-danger" id='btn-delete'>Delete</button>

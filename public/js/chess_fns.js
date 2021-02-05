@@ -249,8 +249,10 @@ function chessBoard(data, moved) {
       const dir = src_colour == 'b' ? 1 : -1;
 
       let pos = [row + dir, col];
-      addPos(...pos);
-      if (!has_moved && getAt(...pos) == pieces.empty) addPos(row + 2 * dir, col); // Can move two ahead if not moved
+      if (getAt(...pos) == pieces.empty) {
+        validSpots.push(pos);
+        if (!has_moved) addPos(row + 2 * dir, col); // Can move two ahead if not moved
+      }
 
       // Move diagonally is can take piece
       // addPos(...) will check for colour confliction :P
@@ -338,5 +340,5 @@ function chessBoard(data, moved) {
 
 if (typeof module !== 'undefined' && module.exports) {
   const loadPieces = _pieces => typeof pieces == "undefined" && (pieces = _pieces);
-  module.exports = { loadPieces, getPieceColour, colStr, isPieceA, chessBoard, dataToArray, getPieceName };
+  module.exports = { loadPieces, getPieceColour, colStr, isPiece, isPieceA, chessBoard, dataToArray, getPieceName };
 }

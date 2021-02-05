@@ -9,4 +9,7 @@ const io = socketio(server);
 
 app.use(express.static('public/'));
 
-module.exports = { app, server, port, io };
+/** Array of all connected sockets */
+const connected_clients = [];
+
+module.exports = { app, server, port, io, connected_clients };

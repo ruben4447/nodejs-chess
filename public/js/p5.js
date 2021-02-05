@@ -6,9 +6,14 @@ let sketch = {
   rerender: false, // Render the board?
 };
 
+const deg90 = 90 * (Math.PI / 180);
+
 function setup() {
   let pad = game.renderOpts.pad * 2;
-  let p5_canvas = createCanvas(game.renderOpts.swidth * game.renderOpts.cols + pad, game.renderOpts.sheight * game.renderOpts.rows + pad + 2 * game.renderOpts.takenh);
+  let p5_canvas = createCanvas(
+    game.renderOpts.swidth * game.renderOpts.cols + pad + 2 * game.renderOpts.takenw,
+    game.renderOpts.sheight * game.renderOpts.rows + pad
+  );
   p5_canvas.parent(dom.div_canvas_wrapper);
   dom.canvas = p5_canvas.elt;
   sketch._ = p5_canvas;
@@ -25,23 +30,23 @@ function draw() {
 
     let isWhite = game.renderOpts.start_white;
     for (let y = 0; y < game.renderOpts.cols; y++) {
-      const py = y * game.renderOpts.sheight + game.renderOpts.pad + game.renderOpts.takenh;
+      const py = y * game.renderOpts.sheight + game.renderOpts.pad;
 
       // Y label
       noStroke();
       fill(51);
       textSize(game.renderOpts.lblsize);
-      text(game.renderOpts.rows - y, game.renderOpts.pad / 2, py + game.renderOpts.sheight / 2);
+      text(game.renderOpts.rows - y, game.renderOpts.takenw + game.renderOpts.pad / 2, py + game.renderOpts.sheight / 2);
 
       for (let x = 0; x < game.renderOpts.rows; x++) {
-        const px = x * game.renderOpts.swidth + game.renderOpts.pad;
+        const px = x * game.renderOpts.swidth + game.renderOpts.pad + game.renderOpts.takenw;
 
         // X Labels
         if (y === 0) {
           noStroke();
           fill(51);
           textSize(game.renderOpts.lblsize);
-          text(String.fromCharCode(65 + x), px + game.renderOpts.swidth / 2, game.renderOpts.takenh + game.renderOpts.pad / 2);
+          text(String.fromCharCode(65 + x), px + game.renderOpts.swidth / 2, game.renderOpts.pad / 2);
         }
 
         stroke(255);
@@ -103,12 +108,22 @@ function draw() {
     if (taken.b.length > 0) {
       stroke(...game.renderOpts.col_b);
       fill(game.renderOpts.fill_b);
-      text(taken.b.split('').join('   '), width / 2, height - game.renderOpts.takenh / 2);
+      let inc = (height - 2 * game.renderOpts.pad) / (taken.b.length + 1);
+      let x = game.renderOpts.takenw / 2, y = game.renderOpts.pad;
+      for (let piece of taken.b) {
+        y += inc;
+        text(piece, x, y);
+      }
     }
     if (taken.w.length > 0) {
       stroke(...game.renderOpts.col_w);
       fill(game.renderOpts.fill_w);
-      text(taken.w.split('').join('   '), width / 2, game.renderOpts.takenh / 2);
+      let inc = (height - 2 * game.renderOpts.pad) / (taken.w.length + 1);
+      let x = width - game.renderOpts.takenw / 2, y = game.renderOpts.pad;
+      for (let piece of taken.w) {
+        y += inc;
+        text(piece, x, y);
+      }
     }
 
     sketch.rerender = false;
@@ -142,7 +157,7 @@ function mouseClicked() {
       }
     } else {
       const cellOn = game.cellOver(mouseX, mouseY);
-      if (cellOn != sketch.posNull && sketch.indexSelected != cellOn) {
+      if (cellOn != sketch.posNull && !(sketch.selected[0] == cellOn[0] && sketch.selected[1] == cellOn[1])) {
         socket._.emit('req-move', {
           src: sketch.selected,
           dst: cellOn,

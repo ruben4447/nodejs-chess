@@ -1,8 +1,8 @@
 {
   "s": <0|1>    // Is game singleplayer?
   "p": ""       // password
-  "wg": <0|1>   // Is it whites go?
-  "d": ""       // Flattened board "<moved?><piece>"
-  "t": ""       // String of taken pieces
-  "w": ""       // Winner of the game
+  "d": ""       // Flattened board "<moved?><piece>...|<taken_pieces><whose_go><winner>"
+  "as": <0|1>   // Allow spectators?
+  "h": [""]     // Game history
+  "l": []       // Log
 }

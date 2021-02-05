@@ -33,3 +33,11 @@ div#board {
   color: forestgreen;
   font-weight: bolder;
 }
+
+#game-log {
+  height: 94vh;
+  width: 15vw;
+  max-width: 15vw;
+  max-height: 94vh;
+  overflow-y: scroll;
+}
