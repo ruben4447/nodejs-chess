@@ -87,12 +87,12 @@ const socket = {
     // arg = { d: data, m: moved, t: taken, w: winner }
     this._.on('game-data', ({ d, m, t, w }) => {
       game.board = chessBoard(
-        dataToArray(d, game.renderOpts.cols),
-        dataToArray(m, game.renderOpts.cols)
+        dataToArray(d, game.cols),
+        dataToArray(m, game.cols)
       );
       game.taken = t;
       game.winner(w);
-      sketch.rerender = true;
+      render.render();
     });
 
     // WHO'S GO
@@ -116,4 +116,5 @@ const socket = {
 
 window.addEventListener('load', () => {
   socket.main();
+  render.init();
 });

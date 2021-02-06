@@ -191,6 +191,7 @@ class Connection {
     this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats()); // Update stats for everyone else
 
     // Let client know that they're connected, and send some base information
+    this.updateLog();
     this.socket.emit('token-ok');
     this.socket.emit('pieces-obj', chess.pieces);
   }

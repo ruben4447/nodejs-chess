@@ -3,6 +3,11 @@ const game = {
   _singleplayer: undefined, // Is this singleplayer (true) or not
   host: false, // Are we host of the game?
 
+  /** Row count of chess board */
+  rows: 8,
+  /** Columns count of chess board */
+  cols: 8,
+
   /** @type {"" | "w" | "b"} */
   _winner: "",
 
@@ -17,28 +22,6 @@ const game = {
 
   /** Contains string of taken pieces */
   taken: "",
-
-
-  renderOpts: {
-    swidth: 85, // Width of cell
-    sheight: 85, // Height of cell
-    psize: 43, // Font size of pieces
-    rows: 8,
-    cols: 8,
-    start_white: true, // Start with white square?
-    col_w: [118, 127, 144], // White stroke
-    fill_w: 51, // White fill
-    col_b: [53, 59, 71], // Black stroke
-    fill_b: 12, // Black fill
-    col_o: [115, 144, 83], // Colour when cell is hovered over
-    col_s: [115, 83, 144], // Colour when cell is selected
-    col_h: [52, 207, 46], // Colour when cell is highlighted
-    lblsize: 17, // Font size of labels
-    pad: 30,
-    takenw: 40, // Width of "taken" section
-    taken_size: 30, // Font size of taken pieces
-    dev: true, // Render developer stuff
-  },
 
   /** Update name of game */
   setName(name) {
@@ -73,18 +56,6 @@ const game = {
       dom.p_above_log.classList.add('small-info');
     }
     delete game.amSpectator;
-  },
-
-  /**
-   * Given mouse coords, retern vertical index of position over or -1
-   * @param {number} x - x coord
-   * @param {number} y - y coord
-   * @return {[number, number] | null} Coordinates or [NaN, NaN]
-  */
-  cellOver(x, y) {
-    const c = Math.floor((x - this.renderOpts.pad - this.renderOpts.takenw) / game.renderOpts.swidth);
-    const r = Math.floor((y - this.renderOpts.pad) / game.renderOpts.sheight);
-    return (c < 0 || c >= game.renderOpts.cols || r < 0 || r > game.renderOpts.rows) ? sketch.posNull : [r, c];
   },
 
   /** Attempt to save game data */

@@ -6,6 +6,7 @@ const dom = {
 
   input_allow_spectators: document.getElementById('allow-spectators'),
 
+  canvas: document.getElementById('canvas'),
   div_canvas_wrapper: document.getElementById('canvas-wrapper'),
   div_restricted: document.getElementById('restricted'),
   div_log: document.getElementById('game-log'),
