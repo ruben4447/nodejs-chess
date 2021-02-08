@@ -3,7 +3,7 @@ const { io } = require('./server.js');
 const chess = require('./chess.js');
 const btoa = require('btoa');
 
-const ADMIN_PASSWD = "password";
+const ADMIN_PASSWD = btoa("root");
 
 /***
  * Manages connection from play.html
@@ -33,7 +33,7 @@ class Connection {
     // Can only try once per connection
     this.socket.on('req-admin', passwd => {
       let granted = this.grantAdminRight(passwd);
-      if (granted) this.socket.emit('msg', 'Administrator right granted.');
+      this.socket.emit('msg', granted ? 'Administrator right granted.' : 'Incorrect details for administrative rights.');
     });
 
     // ! HOST ONLY
@@ -75,7 +75,6 @@ class Connection {
         io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
         io.in(this.chess.room_name).emit('log', this.chess._log);
         this.socket.emit('msg', '[!] Reset game');
-        this.socket.to(this.chess.room_name).emit('alert', { title: 'Reset Game', msg: 'Host reset the game' });
       } else {
         this.socket.emit('alert', { title: 'Unable to reset game', msg: 'You do not have the permissions required to carry out this action [host].' });
       }
@@ -118,13 +117,9 @@ class Connection {
       } else {
         let resp = this.chess.attempt_move(this, data.src, data.dst);
         if (resp.code === 0) {
-          this.chess.toggleGo(); // Toggle go
-          this.chess.saveToFile();
-
-          // Update clients
-          const room = io.in(this.chess.room_name);
-          room.emit('game-data', this.chess.getGameData());
-          room.emit('whos-go', this.chess.go);
+          this.postMove();
+        } else if (resp.code === 3) {
+          this.socket.emit('choose-pawn-transform', this.chess.go);
         } else {
           let title = "Unable to move piece";
           if (resp.code == 2) title = "Illegal Move";
@@ -147,8 +142,8 @@ class Connection {
           this.socket.emit('msg', `[!] Restored game to last recorded state. ${this.chess._history.length} recorded states left.`);
           this.socket.to(this.chess.room_name).emit('alert', { title: 'Restored Game', msg: 'Host restored the game to the last recorded state' });
           const room = io.in(this.chess.room_name);
-          room.emit('game-data', this.chess.getGameData());
           room.emit('whos-go', this.chess.go);
+          room.emit('game-data', this.chess.getGameData());
         } else {
           this.socket.emit('alert', { title: 'Unable to restore game', msg: 'Game is at latest recorded state.' });
         }
@@ -180,6 +175,41 @@ class Connection {
       }
       this.socket.emit('msg', msg);
     });
+
+    this.socket.on('req-forfeit', colour => {
+      const title = "Unable to forfeit";
+      if (colour == 'w' || colour == 'b') {
+        if ((this.colour == '*' || this.colour == colour) && this.chess.go == colour) {
+          this.chess.recordState();
+          this.chess.forfeit(colour);
+
+          this.postMove();
+        } else {
+          this.socket.emit('alert', { title, msg: `Must request to forfeit on ones go (request from invalid source)` });
+        }
+      } else {
+        this.socket.emit('alert', { title, msg: `400 Bad Request (unknown colour ${colour})` });
+      }
+    });
+
+    this.socket.on('chose-pawn-transform', piece => {
+      if (this.chess._movArgs) {
+        if (typeof piece === 'string' && piece.length === 1) {
+          const possible = pieces[this.chess.go].pawnInto;
+          if (possible.indexOf(piece) !== -1) {
+            this.chess.move(...this.chess._movArgs, piece);
+            this.postMove();
+          } else {
+            this.socket.emit('choose-pawn-transform', this.chess.go);
+            this.socket.emit('alert', { title: 'Invalid Piece', msg: 'Cannot transform pawn into an invalid piece (' + piece + ')' });
+          }
+        } else {
+          this.socket.emit('_error', `Bad Request: invalid argument (event:choose-pawn-transform)`);
+        }
+      } else {
+        this.socket.emit('_error', `Not expecting pawn transform selection at this time`);
+      }
+    });
   }
 
   /** Open connection to client-side */
@@ -201,6 +231,17 @@ class Connection {
    */
   updateLog() {
     this.socket.emit('log', this.chess._log);
+  }
+
+  /** Post-move. Toggle to and update clients. */
+  postMove() {
+    this.chess.toggleGo();
+    this.chess.saveToFile();
+
+    // Update clients
+    const room = io.in(this.chess.room_name);
+    room.emit('whos-go', this.chess.go);
+    room.emit('game-data', this.chess.getGameData());
   }
 
   /**

@@ -41,3 +41,10 @@ div#board {
   max-height: 94vh;
   overflow-y: scroll;
 }
+
+#restricted {
+  padding: 5px;
+  border: 2px solid crimson;
+  outline: 1px solid orange;
+  outline-offset: 1px;
+}

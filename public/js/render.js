@@ -15,6 +15,7 @@ let render = {
     takenw: 40, // Width of "taken" section
     taken_size: 30, // Font size of taken pieces
     dev: false, // Render developer stuff
+    giveup_size: 22,
   },
 
   ctx: undefined,
@@ -22,6 +23,12 @@ let render = {
   over: undefined,
   selected: undefined,
   highlighted: [], // Array of highlighted indexes
+  /**
+   * Location of give-up "button"
+   * - [x, y]
+   * @type {number[]} */
+  giveupLocation: undefined,
+  giveupd: 11,
 };
 
 /**
@@ -36,6 +43,7 @@ render.init = function () {
 
   this.over = this.posNull;
   this.selected = this.posNull;
+  this.giveupLocation = this.posNull;
 
   this.canvas.addEventListener('mousemove', (e) => render.onMouseMove(...getPosFromEvent(e)));
   this.canvas.addEventListener('mouseup', (e) => render.onMouseDown(...getPosFromEvent(e)));
@@ -53,6 +61,8 @@ render.setFontSize = function (size) {
  * Render board as-is to canvas
  */
 render.render = function () {
+  this.giveupLocation = this.posNull;
+
   this.ctx.fillStyle = rgb(230);
   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   this.ctx.textAlign = 'center';
@@ -108,6 +118,21 @@ render.render = function () {
         let args = [piece, px + this.opts.swidth / 2, py + this.opts.sheight / 1.7];
         this.ctx.strokeText(...args);
         this.ctx.fillText(...args);
+
+        // forfeit option for king
+        if (game._winner == "" && (game._me == '*' || game._me == c) && c == game._go && piece == pieces[c].king) {
+          this.giveupLocation = [px + this.opts.swidth / 1.9, py + this.opts.sheight / 1.15];
+          this.ctx.fillStyle = rgb(250, 20, 30);
+          this.setFontSize(this.opts.giveup_size);
+          this.ctx.fillText('🗡', ...this.giveupLocation);
+          this.giveupLocation[1] -= 6;
+
+          this.ctx.beginPath();
+          this.ctx.arc(...this.giveupLocation, this.giveupd, 0, 2 * Math.PI);
+          this.ctx.strokeStyle = rgb(250, 20, 30);
+          this.ctx.lineWidth = 0.8;
+          this.ctx.stroke();
+        }
       }
 
       if (this.opts.dev) {
@@ -117,8 +142,9 @@ render.render = function () {
         this.ctx.fillText(`r${y} c${x}`, px + 15, py + 10);
 
         // Has this piece moved?
-        let r = 7;
-        this.ctx.fillStyle = game.board.hasMoved(y, x) ? rgb(20, 210, 20) : fill(220, 20, 20);
+        let r = 4;
+        this.ctx.beginPath();
+        this.ctx.fillStyle = game.board.hasMoved(y, x) ? rgb(20, 210, 20) : rgb(220, 20, 20);
         this.ctx.arc(px + this.opts.swidth - r * 1.5, py + r * 1.4, r, 0, 2 * Math.PI);
         this.ctx.fill();
       }
@@ -181,8 +207,12 @@ render.onMouseMove = function (mouseX, mouseY) {
 
 render.onMouseDown = function (mouseX, mouseY) {
   if (game.board && game._winner == "") {
+    if (mouseX >= this.giveupLocation[0] - this.giveupd && mouseX <= this.giveupLocation[0] + this.giveupd && mouseY >= this.giveupLocation[1] - this.giveupd && mouseY <= this.giveupLocation[1] + this.giveupd) {
+      game.giveUp();
+    }
+
     // If a cell is not selected
-    if (this.selected == this.posNull) {
+    else if (this.selected == this.posNull) {
       const cellOn = this.cellOver(mouseX, mouseY);
       // Only move if (1) new piece and (2) the piece's go and (3) we can move that piece
       let pcol = getPieceColour(game.board.getAt(...cellOn));

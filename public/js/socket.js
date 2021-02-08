@@ -18,10 +18,8 @@ const socket = {
       // Request game information
       this._.emit('req-game-info');
       this._.emit('req-game-stats');
-      this._.emit('req-game-data');
       this._.emit('req-whos-go');
-
-      this._.emit('req-admin', 'password');
+      this._.emit('req-game-data');
     });
 
     this._.on('msg', msg => console.log(msg));
@@ -111,6 +109,8 @@ const socket = {
     });
 
     this._.on('redirect', url => window.location.href = url);
+
+    this._.on('choose-pawn-transform', colour => game.choosePawnTransform(colour));
   }
 };
 

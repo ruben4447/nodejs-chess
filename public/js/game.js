@@ -67,6 +67,41 @@ const game = {
     });
   },
 
+  giveUp() {
+    let colour = this._go;
+    bootbox.confirm({
+      title: 'Give Up?',
+      message: 'Sacrifice your king and forfeit the game?',
+      buttons: {
+        confirm: {
+          label: 'Forfeit',
+          className: 'btn btn-danger',
+        },
+      },
+      callback: bool => {
+        if (bool) {
+          socket._.emit('req-forfeit', colour);
+        }
+      }
+    });
+  },
+
+  choosePawnTransform(for_colour) {
+    let inputOptions = pieces[for_colour].pawnInto.map(p => ({ text: `${getPieceName(p)} (${p})`, value: p }));
+    let queen = pieces[for_colour].queen;
+    inputOptions.unshift({ text: `Default: ${queen}`, value: '' });
+    bootbox.prompt({
+      title: 'Choose Piece',
+      message: `Turn ${colStr(for_colour)} pawn into... `,
+      inputType: 'select',
+      inputOptions,
+      callback: result => {
+        if (result == '' || result == null) result = queen;
+        socket._.emit('chose-pawn-transform', result);
+      },
+    });
+  },
+
   /** Set winner of game */
   winner(w) {
     this._winner = w;

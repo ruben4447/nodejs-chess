@@ -39,6 +39,9 @@ class ChessInstance {
     /** @type {"" | "w" | "b"} */
     this.winner = "";
 
+    /** Save args to this.move ... */
+    this._movArgs = null;
+
     /**
      * Array of all connected Connection objects that are players
      * @type {Connection[]}
@@ -79,6 +82,13 @@ class ChessInstance {
     }
   }
 
+  forfeit(colour) {
+    let winner = colour == 'w' ? 'b' : 'w';
+    let forfeitted = chess_fns.colStr(colour);
+    this.writeLog(`<span class="info-alert">${forfeitted} 🗡</span>`, `${forfeitted} forfeitted the game`);
+    this.declareWinner(winner);
+  }
+
   /**
    * Toggle whose go it is
    */
@@ -91,7 +101,7 @@ class ChessInstance {
    * @param {Connection} conn - COnnection object requesting move
    * @param {[number, number]} src - Source
    * @param {[number, number]} dst - Destination
-   * @return {{code: number, msg: string }} Response object (code: (0) OK (1) error (2) illegal move)
+   * @return {{code: number, msg: string }} Response object (code: (0) OK (1) error (2) illegal move (3) pawn at end; need new piece)
    */
   attempt_move(conn, src, dst) {
     // Game already won?
@@ -126,51 +136,73 @@ class ChessInstance {
     // Check if dst is valid spot
     let valid = conn.admin || chessBoard.isValidMove(src, dst);
 
-    let movStr = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
     if (valid) {
-      let logLine = `${piece_src} ${chessBoard.lbl(...src)} &rarr; ${chessBoard.lbl(...dst)}`;
-      let replaceWith = pieces.empty; // What to replace src_piece with
+      return this.move(chessBoard, src, dst);
+    } else {
+      let msg = `Cannot move ${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
+      return { code: 2, msg, };
+    }
+  }
 
-      // Are we castling
-      if (src_colour == dst_colour && piece_src == pieces[src_colour].king && piece_dst == pieces[dst_colour].rook && !chessBoard.hasMoved(...src) && !chessBoard.hasMoved(...dst)) {
-        replaceWith = pieces[dst_colour].rook;
-        movStr += ' (castled)';
-      } else {
-        // ==== NORMAL MOVE
+  /**
+   * Move src to dst (assume it was validated via attempt_move)
+   * @param {object} chessBoard - Chess board to perform operations on
+   * @param {number[]} src - Source position
+   * @param {number[]} dst - Destination position
+   * @param {string} pawnInto - What to turn pawn into
+   */
+  move(chessBoard, src, dst, pawnInto = null) {
+    this._movArgs = [chessBoard, src, dst];
+    let piece_src = chessBoard.getAt(...src), piece_dst = chessBoard.getAt(...dst);
+    let src_colour = chess_fns.getPieceColour(piece_src), dst_colour = chess_fns.getPieceColour(piece_dst);
 
-        // Taken a piece?
-        if (piece_dst != pieces.empty) {
-          movStr += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
-          this._taken += piece_dst;
-          logLine += ' ' + piece_dst;
-        }
+    let logTitle = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
+    let logLine = `${piece_src} ${chessBoard.lbl(...src)} &rarr; ${chessBoard.lbl(...dst)}`;
 
-        // Won game?
-        if (chess_fns.isPieceA(piece_dst, 'king')) {
-          this.declareWinner(this.go);
-        }
+    let replaceWith = pieces.empty;
 
-        // Pawn reached end?
-        if ((piece_src == pieces.w.pawn && dst[0] == 0) || (piece_src == pieces.b.pawn && dst[0] == rows - 1)) {
-          piece_src = pieces[src_colour].queen;
-          movStr += `, turned into Queen`;
-        }
+    // Are we castling
+    if (src_colour == dst_colour && piece_src == pieces[src_colour].king && piece_dst == pieces[dst_colour].rook && !chessBoard.hasMoved(...src) && !chessBoard.hasMoved(...dst)) {
+      replaceWith = pieces[dst_colour].rook;
+      logTitle += ' (castled)';
+    } else {
+      // ==== NORMAL MOVE
+
+      // Taken a piece?
+      if (piece_dst != pieces.empty) {
+        logTitle += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
+        this._taken += piece_dst;
+        logLine += ' ' + piece_dst;
       }
 
-      // Actually move pieces
-      this.recordState();
-      chessBoard.replace(...dst, piece_src);
-      chessBoard.replace(...src, replaceWith);
-      this._data = chessBoard.getData();
-      this._moved = chessBoard.getMoved();
+      // Won game?
+      if (chess_fns.isPieceA(piece_dst, 'king')) {
+        this.declareWinner(this.go);
+      }
 
-      this.writeLog(logLine, movStr);
-
-      return { code: 0, msg: movStr };
-    } else {
-      movStr = "Cannot move " + movStr;
-      return { code: 2, msg: movStr };
+      // Pawn reached end?
+      if ((piece_src == pieces.w.pawn && dst[0] == 0) || (piece_src == pieces.b.pawn && dst[0] == rows - 1)) {
+        if (pawnInto == null) {
+          return { code: 3 };
+        } else {
+          piece_src = pawnInto;
+          logTitle += `, turned into ${pawnInto}`;
+          logLine += ` (${pawnInto})`;
+        }
+      }
     }
+
+    // Actually move pieces
+    this.recordState();
+    chessBoard.replace(...dst, piece_src);
+    chessBoard.replace(...src, replaceWith);
+    this._data = chessBoard.getData();
+    this._moved = chessBoard.getMoved();
+    this._movArgs = null;
+
+    this.writeLog(logLine, logTitle);
+
+    return { code: 0, msg: logTitle };
   }
 
   /** Add state to history */
@@ -438,7 +470,9 @@ const all = {};
 // :: /data/pieces.json
 const pieces = JSON.parse(fs.readFileSync('data/pieces.json'));
 pieces.w.all = Object.values(pieces.w);
+pieces.w.pawnInto = pieces.w.all.filter(x => x != pieces.w.pawn && x != pieces.w.king);
 pieces.b.all = Object.values(pieces.b);
+pieces.b.pawnInto = pieces.b.all.filter(x => x != pieces.b.pawn && x != pieces.b.king);
 chess_fns.loadPieces(pieces);
 
 module.exports = { ChessInstance, saves_path, all, pieces, rows, cols, loadFiles };
