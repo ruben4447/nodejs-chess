@@ -20,8 +20,10 @@ const dom = {
   p_go: document.getElementById('whos-go'),
   p_winner_wrapper: document.getElementById('game-winner-wrapper'),
   p_winner: document.getElementById('game-winner'),
+  p_p1name: document.getElementById('player-1-name'),
+  p_p2name: document.getElementById('player-2-name'),
 
-  h2_gname: document.getElementById('game--name'),
+  h2_gname: document.getElementById('game-name'),
 };
 
 dom.btn_disconnect.addEventListener('click', () => {

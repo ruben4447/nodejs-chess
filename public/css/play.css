@@ -1,3 +1,7 @@
+:root {
+  --banner-height: 4vh;
+}
+
 .flex {
   display: flex;
 }
@@ -9,8 +13,7 @@ div#board {
 .panel {
   border: 1px solid #2B313D;
   padding: 10px;
-  height: 99.5vh;
-  /* width: 15vw; */
+  height: calc(99.5vh - var(--banner-height));
 }
 
 .flex>.flex-bottom {
@@ -34,11 +37,22 @@ div#board {
   font-weight: bolder;
 }
 
+.banner {
+  height: var(--banner-height);
+  padding-left: 2vw;
+  font-size: 1.2em;
+}
+
+#game-name {
+  font-size: 1.3em;
+  font-weight: bold;
+}
+
 #game-log {
   height: 94vh;
   width: 15vw;
   max-width: 15vw;
-  max-height: 94vh;
+  max-height: calc(94vh - var(--banner-height));
   overflow-y: scroll;
 }
 

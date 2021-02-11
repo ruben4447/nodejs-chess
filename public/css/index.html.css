@@ -1,0 +1,8 @@
+#my-name[data-set="false"]:hover {
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+#chat {
+  height: 50vh;
+}

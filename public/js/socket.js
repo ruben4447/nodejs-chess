@@ -37,10 +37,15 @@ const socket = {
     });
 
     // Token is not valid...
-    this._.on('invalid-token', () => {
-      console.error("INVALID GAME TOKEN");
+    this._.on('invalid-token', (n) => {
+      console.error("INVALID GAME TOKEN. Stage " + n);
       document.body.innerHTML = '';
       window.location.href = '/index.html?e=invalid_t';
+    });
+
+    this._.on('player-name', ({ n, name }) => {
+      let el = dom[`p_p${n}name`];
+      if (el) el.innerText = name;
     });
 
     this._.on('pieces-obj', obj => pieces = obj);

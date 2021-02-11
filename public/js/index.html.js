@@ -17,11 +17,20 @@
   socket.on('game-count', n => {
     document.getElementById('game-count').innerText = n;
   });
+  socket.on('my-name', name => {
+    if (p_myname.innerText.length != 0) p_myname.dataset.set = true;
+    p_myname.innerText = name;
+  });
   socket.on('connect-game', data => {
     // [data] is token to access game (time-limited)
     console.log("Authorised... Connecting to game.");
     window.location.href = '/play.html?t=' + data;
   });
+  socket.on('entire-chat', lines => {
+    div_chat.innerHTML = '';
+    for (let { from, text } of lines) msg_line(from, text);
+  });
+  socket.on('new-msg', ({ from, text }) => msg_line(from, text))
   socket.on('redirect', url => location.href = url);
 
   const ppl_online = document.getElementById('ppl-online');
@@ -29,8 +38,14 @@
 
   const btn_connect = document.getElementById('btn-connect');
   const btn_create = document.getElementById('btn-create');
-
-  // Called in response to 'req-conn-game' if password is correct
+  const p_myname = document.getElementById('my-name');
+  const div_chat = document.getElementById('chat');
+  const input_chat = document.getElementById('chat-input');
+  const btn_send = document.getElementById('btn-send');
+  function msg_line(from, text) {
+    div_chat.innerHTML += `[<b>${from}</b>]  ${text}<br>`;
+    div_chat.scrollTo(0, div_chat.scrollHeight); // Scroll to bottom
+  }
 
   let create_game_dialog = {
     title: 'Create Game',
@@ -82,6 +97,12 @@
     }
   };
 
+  function clickChangeName() {
+    bootbox.prompt('Enter the name you wish to be visible by', name => {
+      if (typeof name === 'string') socket.emit('change-name', name);
+    });
+  }
+
   // ================================ MAIN =============================
   window.addEventListener('load', () => {
     window.socket.emit('from-index.html');
@@ -90,6 +111,14 @@
 
     btn_connect.addEventListener('click', () => bootbox.dialog(connect_game_dialog));
     btn_create.addEventListener('click', () => bootbox.dialog(create_game_dialog));
+    p_myname.addEventListener('click', clickChangeName);
+    btn_send.addEventListener('click', () => {
+      const text = input_chat.value;
+      if (text.length > 0) {
+        socket.emit('send-msg', text);
+        input_chat.value = '';
+      }
+    });
 
     // Any error variables?
     let params = new URLSearchParams(location.search);

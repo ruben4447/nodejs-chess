@@ -1,28 +1,39 @@
 const { io, addClient, removeClient } = require('./server.js');
 
-const fs = require('fs');
-
 const indexhtml = require('./index.html.js');
 const { loadFiles } = require('./chess.js');
 const access_token = require('./access_token.js');
 const connection = require('./connection.js');
 
+indexhtml.chat.write("SERVER", `<em>Server Restarted on <small>${new Date(Date.now()).toString()}</small></em>`);
+
 io.on('connection', (socket) => {
   addClient(socket);
 
   // Load listeners used in index.html
+  let indexhtml_conn = false;
   socket.on('from-index.html', () => {
-    indexhtml.init(socket);
-    // indexhtml.request_connect_game(socket, "test1", "123");
+    if (!indexhtml_conn) {
+      indexhtml_conn = true;
+      let conn = new indexhtml.Connection(socket);
+      conn.updateChat();
+      // conn.setName("Bill");
+      // conn.requestConnectGame("test1", "123");
+    }
   });
 
   // Token from play.html. Only allow one request per connection.
   socket.once('send-token', t => {
-    let v = access_token.is_valid(t, socket);
-    if (v) {
-      let _ = new connection.Connection(t);
+    let obj = access_token.Token.get(t);
+    if (obj) {
+      if (obj.consume(socket)) {
+        let conn = new connection.Connection(obj);
+      } else {
+        socket.emit('invalid-token', 2);
+      }
     } else {
-      socket.emit('invalid-token');
+      console.log(access_token.Token.all)
+      socket.emit('invalid-token', 1);
     }
   });
 

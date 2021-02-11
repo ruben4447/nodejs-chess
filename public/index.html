@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chess | Home</title>
   <link rel="stylesheet" href="./css/master.css">
+  <link rel="stylesheet" href="./css/index.html.css">
   <link rel="shortcut icon" href="/favicon.png" type="image/png" />
   
   <!-- Socket.IO -->
@@ -17,18 +18,23 @@
   <script type="text/javascript" charset="utf-8" src="./js/lib/bootbox.all.min.js"></script>
 </head>
 <body>
+  <div class="banner centre">
+    <span>Name: <b data-set="false" id='my-name'></b></span> |
+    <span>Online: <b id='ppl-online'></b></span> |
+    <span>Games: <b id='game-count'></b></span>
+  </div>
+  <br>
   <div class='centre'>
-    <h1>Chess Home</h1>
-    <p>People Online: <span id='ppl-online'>-</span></p>
-    <br>
-
-    <h2>Active Games</h2>
-    <p>Active games: <span id='game-count'></span></p>
-    <button type="button" class="btn btn-primary" id='btn-connect'>Connect to Game</button>
-    <br><br>
-
-    <h2>New Game</h2>
+    <button type="button" class="btn btn-primary" id='btn-connect'>Connect to Game</button> &nbsp;&nbsp;
     <button type="button" class="btn btn-primary" id="btn-create">Create New Game</button>
+
+    <br><hr>
+    <h2>Player Chat</h2>
+  </div>
+  <div class="chat-wrapper">
+    <div id="chat"></div>
+    <br>
+    <input type="text" id='chat-input' /> <button class='btn btn-secondary' id='btn-send'>Send</button>
   </div>
 
   <br><br><hr>

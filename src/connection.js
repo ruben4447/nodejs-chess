@@ -12,13 +12,14 @@ const ADMIN_PASSWD = btoa("root");
 class Connection {
   /**
    * Attempt to create new connection
-   * @param {string} t - connection token (GET var 't' in play.html)
+   * @param {indexhtml.Token} t - connection token
    */
   constructor(t) {
     this.t = t;
-    this.chess = access_token.get_data(t, 0);
-    this.socket = access_token.get_data(t, 2);
-    this.spectator = access_token.get_data(t, 3);
+    this.chess = t.getRefGame();
+    this.socket = t.getConnectedSocket();
+    this.spectator = t.isSpectator();
+    this.name = t.getCreatorName();
     this.colour = undefined; // Colour 'w' or 'b'. Assigned by ChessInstance object (by add_conn)
     this.admin = undefined; // Requires request
 
@@ -222,7 +223,6 @@ class Connection {
 
   /** Open connection to client-side */
   open() {
-    // console.log(`Connection.open: called using token ${this.t} with socket ${this.socket.id}`);
     this.chess.add_conn(this);
     this.socket.join(this.chess.room_name); // Join socket communication room for game
     this.socket.to(this.chess.room_name).emit('msg', `A new ${this.spectator ? 'spectator' : 'player'} joined.`); // Alert everyone of new connection
@@ -232,6 +232,7 @@ class Connection {
     this.updateLog();
     this.socket.emit('token-ok');
     this.socket.emit('pieces-obj', chess.pieces);
+    this.updateMemberNames();
   }
 
   /**
@@ -275,20 +276,28 @@ class Connection {
     }
   }
 
-  /**
-   * Remove access token from connection
-   */
-  remove_token() {
-    // console.log(`Connection.remove_token: removing token ${this.t}`);
-    access_token.remove(this.t);
+  /** Update names of everyone in game */
+  updateMemberNames(roomName = null) {
+    if (roomName == null) roomName = this.chess.room_name;
+    let room = io.in(roomName);
+    if (this.chess._singleplayer) {
+      room.emit('player-name', { n: 1, name: this.name });
+      room.emit('player-name', { n: 2, name: this.name });
+    } else {
+      room.emit('player-name', { n: 1, name: (this.chess.conns.length > 0 ? this.chess.conns[0].name : '?') });
+      room.emit('player-name', { n: 2, name: (this.chess.conns.length > 1 ? this.chess.conns[1].name : '?') });
+    }
   }
 
   /** Called when about to disconnect; cut loose ends */
   close() {
-    this.socket.to(this.chess.room_name).emit('msg', `A ${this.spectator ? 'spectator' : 'player'} left.`); // Leaving message
-    this.remove_token(); // Remove game access token
+    let roomName = this.chess.room_name;
+    this.t.del(); // Delete token
     this.chess.remove_conn(this); // Remove connection to ChessInstance
-    this.socket.to(this.chess.room_name).emit('game-stats', this.chess.getGameStats()); // Update clients on stats
+
+    this.socket.to(roomName).emit('msg', `A ${this.spectator ? 'spectator' : 'player'} left.`); // Leaving message
+    this.socket.to(roomName).emit('game-stats', this.chess.getGameStats()); // Update clients on stats
+    this.updateMemberNames(roomName);
 
     // If host, kick out everyone else as well
     if (this.isHost) {

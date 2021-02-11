@@ -6,3 +6,29 @@ body {
 .centre {
   text-align: center;
 }
+
+.banner {
+  width: 100vw;
+  height: 3vh;
+  background-color: #9c9595;
+}
+
+.chat-wrapper {
+  background-color: #c2c0c045;
+  border: 1px solid black;
+  margin: 0 5px;
+  padding: 3px;
+}
+
+#chat {
+  overflow-y: scroll;
+}
+
+#chat>span {
+  font-size: .8em;
+}
+
+input#chat-input {
+  width: 75%;
+  outline: none;
+}

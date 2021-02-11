@@ -18,6 +18,11 @@
   <script type="text/javascript" charset="utf-8" src="./js/lib/bootbox.all.min.js"></script>
 </head>
 <body>
+  <div class="banner">
+    <span id='game-name'>(name)</span> |
+    <span id='player-1-name'>N/A</span> vs <span id='player-2-name'>N/A</span>
+  </div>
+
   <main class='flex'>
     <div class='panel'>
       <span id='above-log'></span>
@@ -28,8 +33,6 @@
     </div>
     <div class='panel flex'>
       <div class="centre">
-        <h2 id='game--name'>unknown</h2>
-
         <span class='small-info' id='me-colour'></span>
 
         <span class='small-info' id='whos-go-wrapper'><span id='whos-go'></span>'s Go<br></span>
