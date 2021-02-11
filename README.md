@@ -8,9 +8,14 @@ N.B. This game does not have users or accounts.
 
 ## Games
 A new game may be created by anyone. (no info is stored about who created the game)
+
 When a game is created, a password may be set.
+
+There are two game modes: singleplayer and multiplayer. Both have two colours, but in singleplayer, the two colours play on one device. In multiplayer, each device plays as one colour.
+
 Anyone may join a game, given they provided the correct password.
-The first person to join a game isknown as the "host" and has control over the game, such as undo, reset and deletion.
+
+The first person to join a game is known as the "host" and has control over the game, such as undo, reset and deletion.
 
 ## Features
 - Singleplayer (single computer) or Multiplayer (two computer) game options

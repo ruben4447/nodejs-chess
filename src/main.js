@@ -13,6 +13,7 @@ io.on('connection', (socket) => {
   // Load listeners used in index.html
   socket.on('from-index.html', () => {
     indexhtml.init(socket);
+    // indexhtml.request_connect_game(socket, "test1", "123");
   });
 
   // Token from play.html. Only allow one request per connection.

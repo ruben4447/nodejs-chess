@@ -3,6 +3,7 @@ const dom = {
   btn_delete: document.getElementById('btn-delete'),
   btn_reset: document.getElementById('btn-reset'),
   btn_restore: document.getElementById('btn-restore'),
+  btn_mode: document.getElementById('btn-mode'),
 
   input_allow_spectators: document.getElementById('allow-spectators'),
 
@@ -52,4 +53,25 @@ dom.btn_restore.addEventListener('click', () => {
 
 dom.input_allow_spectators.addEventListener('change', function () {
   socket._.emit('req-allow-spectators', this.checked);
+});
+
+dom.btn_mode.addEventListener('click', () => {
+  const current = game._singleplayer ? "singleplayer" : "multiplayer";
+  const other = game._singleplayer ? "multiplayer" : "singleplayer";
+
+  bootbox.dialog({
+    title: 'Game Mode',
+    message: `Change game mode from ${current} to ${other}? (all players will be kicked)`,
+    buttons: {
+      cancel: {
+        label: 'Cancel',
+        className: 'btn btn-secondary'
+      },
+      confirm: {
+        label: `Change to ${other}`,
+        className: 'btn btn-primary',
+        callback: () => socket._.emit('change-gamemode', !game._singleplayer)
+      }
+    }
+  });
 });

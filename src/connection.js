@@ -38,12 +38,10 @@ class Connection {
 
     // ! HOST ONLY
     this.socket.on('req-delete-game', () => {
-      if (this.isHost) {
-        this.chess.del();
-        io.in(this.chess.room_name).emit('redirect', '/index.html?e=deleted');
-      } else {
-        this.socket.emit('alert', { title: 'Unable to delete game', msg: 'You do not have the permissions required to carry out this action [host].' });
-      }
+      if (!this.isHost) return this.permissionError("host");
+
+      this.chess.del();
+      io.in(this.chess.room_name).emit('redirect', '/index.html?e=deleted');
     });
 
     this.socket.on('req-game-info', () => {
@@ -66,46 +64,42 @@ class Connection {
 
     // ! HOST ONLY
     this.socket.on('req-reset-game', () => {
-      if (this.isHost) {
-        this.chess.reset();
-        this.chess._log.length = 0;
-        this.chess.writeLog('<i>Game Reset</i>', 'Host reset the game');
-        this.chess.saveToFile();
+      if (!this.isHost) return this.permissionError("host");
 
-        io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
-        io.in(this.chess.room_name).emit('log', this.chess._log);
-        this.socket.emit('msg', '[!] Reset game');
-      } else {
-        this.socket.emit('alert', { title: 'Unable to reset game', msg: 'You do not have the permissions required to carry out this action [host].' });
-      }
+      this.chess.reset();
+      this.chess._log.length = 0;
+      this.chess.writeLog('<i>Game Reset</i>', 'Host reset the game');
+      this.chess.saveToFile();
+
+      io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
+      io.in(this.chess.room_name).emit('log', this.chess._log);
+      this.socket.emit('msg', '[!] Reset game');
     });
 
     // ! ADMINISTRATOR ONLY
     this.socket.on('req-save', ({ d, m, t }) => {
-      if (this.admin) {
-        let v = chess.ChessInstance.isValidData(d);
+      if (!this.isHost) return this.permissionError("admin");
+
+      let v = chess.ChessInstance.isValidData(d);
+      if (v === true) {
+        v = chess.ChessInstance.isValidMovedData(m);
         if (v === true) {
-          v = chess.ChessInstance.isValidMovedData(m);
+          v = chess.ChessInstance.isValidData(t);
           if (v === true) {
-            v = chess.ChessInstance.isValidData(t);
-            if (v === true) {
-              this.chess._data = d;
-              this.chess._moved = m;
-              this.chess._taken = t;
-              this.chess.saveToFile();
-              io.in(this.chess.room_name).emit('msg', `[${Date.now()}] Saved game data`);
-              io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
-            } else {
-              this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (t, "' + v + '")' });
-            }
+            this.chess._data = d;
+            this.chess._moved = m;
+            this.chess._taken = t;
+            this.chess.saveToFile();
+            io.in(this.chess.room_name).emit('msg', `[${Date.now()}] Saved game data`);
+            io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
           } else {
-            this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (m, "' + v + '")' });
+            this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (t, "' + v + '")' });
           }
         } else {
-          this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (d, "' + v + '")' });
+          this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (m, "' + v + '")' });
         }
       } else {
-        this.socket.emit('alert', { title: 'Unable to save game', msg: 'You do not have the permissions required to carry out this action [admin].' });
+        this.socket.emit('alert', { title: 'Unable to save game', msg: 'Game data is invalid (d, "' + v + '")' });
       }
     });
 
@@ -131,24 +125,22 @@ class Connection {
     // Restore game to last state
     // ! HOST ONLY
     this.socket.on('req-restore', () => {
-      if (this.isHost) {
-        let bool = this.chess.restore();
-        if (bool) {
-          this.chess.toggleGo();
-          this.chess.writeLog('<i>Undid latest move</i>', 'Host restored game to last recoreded state');
-          this.chess.saveToFile();
+      if (!this.isHost) return this.permissionError("host");
 
-          // Update clients
-          this.socket.emit('msg', `[!] Restored game to last recorded state. ${this.chess._history.length} recorded states left.`);
-          this.socket.to(this.chess.room_name).emit('alert', { title: 'Restored Game', msg: 'Host restored the game to the last recorded state' });
-          const room = io.in(this.chess.room_name);
-          room.emit('whos-go', this.chess.go);
-          room.emit('game-data', this.chess.getGameData());
-        } else {
-          this.socket.emit('alert', { title: 'Unable to restore game', msg: 'Game is at latest recorded state.' });
-        }
+      let bool = this.chess.restore();
+      if (bool) {
+        this.chess.toggleGo();
+        this.chess.writeLog('<i>Undid latest move</i>', 'Host restored game to last recoreded state');
+        this.chess.saveToFile();
+
+        // Update clients
+        this.socket.emit('msg', `[!] Restored game to last recorded state. ${this.chess._history.length} recorded states left.`);
+        this.socket.to(this.chess.room_name).emit('alert', { title: 'Restored Game', msg: 'Host restored the game to the last recorded state' });
+        const room = io.in(this.chess.room_name);
+        room.emit('whos-go', this.chess.go);
+        room.emit('game-data', this.chess.getGameData());
       } else {
-        this.socket.emit('alert', { title: 'Unable to restore game', msg: 'You do not have the permissions required to carry out this action [host].' });
+        this.socket.emit('alert', { title: 'Unable to restore game', msg: 'Game is at latest recorded state.' });
       }
     });
 
@@ -161,6 +153,8 @@ class Connection {
 
     // ! HOST ONLY
     this.socket.on('req-allow-spectators', bool => {
+      if (!this.isHost) return this.permissionError("host");
+
       this.chess._allowSpectators = !!bool;
       this.chess.saveToFile();
       let msg;
@@ -210,6 +204,20 @@ class Connection {
         this.socket.emit('_error', `Not expecting pawn transform selection at this time`);
       }
     });
+
+    // ! HOST ONLY
+    this.socket.on('change-gamemode', singleplayer => {
+      if (!this.isHost) return this.permissionError("host");
+      singleplayer = !!singleplayer;
+
+      if (this.chess._singleplayer == singleplayer) {
+        this.socket.emit('msg', `Game is already ${singleplayer ? 'singleplayer' : 'multiplayer'}`);
+      } else {
+        this.chess._singleplayer = singleplayer;
+        this.chess.saveToFile();
+        io.in(this.chess.room_name).emit('redirect', '/index.html?e=change_mode'); // Kick all players
+      }
+    });
   }
 
   /** Open connection to client-side */
@@ -224,6 +232,14 @@ class Connection {
     this.updateLog();
     this.socket.emit('token-ok');
     this.socket.emit('pieces-obj', chess.pieces);
+  }
+
+  /**
+   * Permission Error!
+   * @param {"host" | "admin"} req - String permissions required
+   */
+  permissionError(req) {
+    this.socket.emit('alert', { title: 'Invalid Permissions', msg: 'You do not have the permissions required to carry out this action [' + req + '].' });
   }
 
   /**

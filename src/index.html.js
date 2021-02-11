@@ -44,13 +44,14 @@ function request_connect_game(socket, name, passwd, spec) {
  * @param {socketio.Socket} socket - Requesting socket object
  * @param {string} name - Name of the game
  * @param {string} password - Password to game
+ * @param {boolean} singleplayer - Is game singleplayer?
  */
-function request_create_game(socket, name, passwd) {
+function request_create_game(socket, name, passwd, singleplayer) {
   if (typeof name != 'string' || name.length == 0) return socket.emit('alert', { title: 'Cannot create game', msg: `Name is required` });
   if (typeof passwd != 'string' || passwd.length == 0) return socket.emit('alert', { title: 'Cannot create game', msg: `Password is required` });
   if (chess.all[name]) return socket.emit('alert', { title: 'Cannot create game', msg: `Game with name '${name}' already exists` });
 
-  let x = chess.ChessInstance.createNew(name, true, passwd);
+  let x = chess.ChessInstance.createNew(name, singleplayer, passwd);
   socket.emit('alert', { title: 'Created game', msg: `Created new game '${x._name}'` });
   socket.emit('game-count', Object.keys(chess.all).length);
 }
@@ -62,7 +63,7 @@ function request_create_game(socket, name, passwd) {
 const init = socket => {
   socket.on('req-game-count', () => socket.emit('game-count', Object.keys(chess.all).length));
   socket.on('req-connect-game', ({ name, passwd, spec }) => request_connect_game(socket, name, atob(passwd), !!spec));
-  socket.on('req-create-game', ({ name, passwd }) => request_create_game(socket, name, atob(passwd)));
+  socket.on('req-create-game', ({ name, passwd, s }) => request_create_game(socket, name, atob(passwd), s == 1));
 };
 
 module.exports = { init, request_connect_game, request_create_game };

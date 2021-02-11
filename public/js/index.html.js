@@ -3,7 +3,6 @@
   window.socket = io();
   socket.on('msg', msg => console.log(msg));
   socket.on('alert', arg => {
-    console.log(arg);
     if (typeof arg == 'string') {
       bootbox.alert(arg);
     } else {
@@ -11,7 +10,7 @@
     }
   });
   socket.on('_error', msg => {
-    console.error(msg);
+    console.log('Error Event: ' + msg);
     bootbox.alert({ title: 'Error', message: msg, });
   });
 
@@ -35,7 +34,7 @@
 
   let create_game_dialog = {
     title: 'Create Game',
-    message: `<input type='text' id='inp-game-name' class='bootbox-input form-control' placeholder='Game Name' /><br><input type='password' class='bootbox-input bootbox-input-password form-control' placeholder='Game Password' id='inp-game-passwd' />`,
+    message: `<input type='text' id='inp-game-name' class='bootbox-input form-control' placeholder='Game Name' /><br><input type='password' class='bootbox-input bootbox-input-password form-control' placeholder='Game Password' id='inp-game-passwd' /><br><input type='checkbox' id='inp-game-multiplayer' /> <abbr title='Two devices - one device for one colour'>Multiplayer</abbr>`,
     buttons: {
       cancel: {
         label: 'Cancel',
@@ -47,9 +46,11 @@
         callback: () => {
           let name = document.getElementById('inp-game-name').value;
           let passwd = document.getElementById('inp-game-passwd').value;
+          let multiplayer = document.getElementById('inp-game-multiplayer').checked;
           socket.emit('req-create-game', {
             name,
             passwd: btoa(passwd),
+            s: +(!multiplayer),
           });
         },
       },
@@ -109,6 +110,9 @@
           break;
         case 'no_spectator':
           socket.emit('rebound-event', ['alert', { title: 'Connection Closed', msg: 'Spectators are disabled for this game.' }]);
+          break;
+        case 'change_mode':
+          socket.emit('rebound-event', ['alert', { title: 'Connection Closed', msg: 'Host changed mode of the game.' }]);
           break;
         default:
           socket.emit('rebound-event', ['_error', `Unknown error occured (${e})`]);
