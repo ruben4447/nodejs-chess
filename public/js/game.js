@@ -2,6 +2,9 @@ const game = {
   _name: undefined, // Game name
   _singleplayer: undefined, // Is this singleplayer (true) or not
   host: false, // Are we host of the game?
+  _ai: false,
+  aiPlayDelay: 0,
+  aiColour: 'b', // Colour of AI ("w", "b", "*")
 
   /** Row count of chess board */
   rows: 8,
@@ -86,20 +89,29 @@ const game = {
     });
   },
 
-  choosePawnTransform(for_colour) {
-    let inputOptions = pieces[for_colour].pawnInto.map(p => ({ text: `${getPieceName(p)} (${p})`, value: p }));
-    let queen = pieces[for_colour].queen;
-    inputOptions.unshift({ text: `Default: ${queen}`, value: '' });
-    bootbox.prompt({
-      title: 'Choose Piece',
-      message: `Turn ${colStr(for_colour)} pawn into... `,
-      inputType: 'select',
-      inputOptions,
-      callback: result => {
-        if (result == '' || result == null) result = queen;
-        socket._.emit('chose-pawn-transform', result);
-      },
-    });
+  // choosePawnTransform(for_colour) {
+  //   let inputOptions = pieces[for_colour].pawnInto.map(p => ({ text: `${getPieceName(p)} (${p})`, value: p }));
+  //   let _default = pieces[for_colour].pawnInto[0];
+  //   inputOptions.unshift({ text: `Default: ${_default}`, value: '' });
+  //   bootbox.prompt({
+  //     title: 'Choose Piece',
+  //     message: `Turn ${colStr(for_colour)} pawn into... `,
+  //     inputType: 'select',
+  //     inputOptions,
+  //     callback: result => {
+  //       if (result == '' || result == null) result = _default;
+  //       socket._.emit('chose-pawn-transform', result);
+  //     },
+  //   });
+  // },
+
+  aiPlay() {
+    if (this.aiColour == '*' || this._go == this.aiColour) {
+      setTimeout(() => {
+        let move = AI.getBestMove(this.board, this._go);
+        AI.move(move);
+      }, this.aiPlayDelay);
+    }
   },
 
   /** Set winner of game */
@@ -119,3 +131,4 @@ const game = {
 };
 
 let pieces; // Pieces object
+let piece_values; // Piece values object

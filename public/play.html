@@ -37,11 +37,13 @@
 
         <span class='small-info' id='whos-go-wrapper'><span id='whos-go'></span>'s Go<br></span>
 
-        <span class='small-info info-good' id='game-winner-wrapper'>Winner: <span id='game-winner'></span><br></span>
+        <span class='small-info info-good' id='game-winner-wrapper' title='Game Winner'>&#128081; <span id='game-winner'></span> &#128081;<br></span>
 
         <span class='small-info'><span id='game-players'></span></span>
         <br>
 
+        <span class='small-info' id='game-ai-wrapper'><span title="Play against computer?"><span id='game-ai-icon' title='Configure'>&#x1F916;</span> <input type="checkbox" id="against-ai" /></span><br></span>
+        
         <span class='small-info'><span id='game-spectators'></span> <input type='checkbox' id='allow-spectators' /></span>
         <br>
 
@@ -68,6 +70,7 @@
   <script type="text/javascript" charset="utf-8" src="./js/dom.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/game.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/chess_fns.js"></script>
+  <script type="text/javascript" charset="utf-8" src="./js/ai.js"></script>
   <script type="text/javascript" charset="utf-8" src="./js/render.js"></script>
 </body>
 </html>

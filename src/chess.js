@@ -12,6 +12,7 @@ class ChessInstance {
     this._name = name;
     this._passwd = passwd;
     this._allowSpectators = true;
+    this._AI = false; // If singleplayer, is player2 AI?
 
     /**
      * Whose go is it?
@@ -39,9 +40,6 @@ class ChessInstance {
     /** @type {"" | "w" | "b"} */
     this.winner = "";
 
-    /** Save args to this.move ... */
-    this._movArgs = null;
-
     /**
      * Array of all connected Connection objects that are players
      * @type {Connection[]}
@@ -60,11 +58,23 @@ class ChessInstance {
 
   get maxConnections() { return this._singleplayer ? 1 : 2; }
 
+  /**
+   * Are we playing against an AI?
+   * @param {boolean} value - If present, value to set
+   * @return {boolean}
+   */
+  againstAI(value = null) {
+    if (value != null) this._AI = !!value;
+
+    if (this._singleplayer) return this._AI;
+    return false;
+  }
+
   declareWinner(winner) {
     if (winner == " ") winner = "";
     this.winner = winner;
     if (winner != "") {
-      this.writeLog('<span class=\'small-info\'>Winner: ' + colStr(winner) + '</span>');
+      this.writeLog('<span class=\'small-info\' title=\'Winner\'>&#128081; ' + colStr(winner) + ' &#128081;</span>');
       let loser = winner == 'w' ? 'b' : 'w';
 
       // "Kill" all of black's pieces
@@ -101,9 +111,13 @@ class ChessInstance {
    * @param {Connection} conn - COnnection object requesting move
    * @param {[number, number]} src - Source
    * @param {[number, number]} dst - Destination
-   * @return {{code: number, msg: string }} Response object (code: (0) OK (1) error (2) illegal move (3) pawn at end; need new piece)
+   * @param {boolean} ai - Is AI making this move [default=false]
+   * @return {{code: number, msg: string }} Response object (code: (0) OK (1) error (2) illegal move)
    */
-  attempt_move(conn, src, dst) {
+  attempt_move(conn, src, dst, ai = false) {
+    // Can AI play?
+    if (ai && !this.againstAI()) return { code: 1, msg: `AI cannot move as it is not enabled.` };
+
     // Game already won?
     if (this.winner != "") return { code: 1, msg: `This game has been won by ${colStr(this.winner)}` };
 
@@ -137,72 +151,33 @@ class ChessInstance {
     let valid = conn.admin || chessBoard.isValidMove(src, dst);
 
     if (valid) {
-      return this.move(chessBoard, src, dst);
+      this.recordState(); // Record state in history
+      const obj = chessBoard.move(src, dst);
+
+      // Was a piece taken?
+      if (obj.dst.piece != pieces.empty) this._taken += obj.dst.piece;
+
+      // Save new board state
+      this._data = chessBoard.getData();
+      this._moved = chessBoard.getMoved();
+
+      if (ai) {
+        obj.log.line = '&#x1F916; ' + obj.log.line;
+        obj.log.title = 'Computer: ' + obj.log.title;
+      }
+      this.writeLog(obj.log.line, obj.log.title); // Write to log
+
+      // Is there a winner?
+      if (obj.winner) {
+        this.declareWinner(obj.winner);
+        this.againstAI(false);
+      }
+
+      return { code: 0, obj };
     } else {
       let msg = `Cannot move ${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
       return { code: 2, msg, };
     }
-  }
-
-  /**
-   * Move src to dst (assume it was validated via attempt_move)
-   * @param {object} chessBoard - Chess board to perform operations on
-   * @param {number[]} src - Source position
-   * @param {number[]} dst - Destination position
-   * @param {string} pawnInto - What to turn pawn into
-   */
-  move(chessBoard, src, dst, pawnInto = null) {
-    this._movArgs = [chessBoard, src, dst];
-    let piece_src = chessBoard.getAt(...src), piece_dst = chessBoard.getAt(...dst);
-    let src_colour = chess_fns.getPieceColour(piece_src), dst_colour = chess_fns.getPieceColour(piece_dst);
-
-    let logTitle = `${colStr(src_colour)} ${chess_fns.getPieceName(piece_src)} from ${chessBoard.lbl(...src)} to ${chessBoard.lbl(...dst)}`;
-    let logLine = `${piece_src} ${chessBoard.lbl(...src)} &rarr; ${chessBoard.lbl(...dst)}`;
-
-    let replaceWith = pieces.empty;
-
-    // Are we castling
-    if (src_colour == dst_colour && piece_src == pieces[src_colour].king && piece_dst == pieces[dst_colour].rook && !chessBoard.hasMoved(...src) && !chessBoard.hasMoved(...dst)) {
-      replaceWith = pieces[dst_colour].rook;
-      logTitle += ' (castled)';
-    } else {
-      // ==== NORMAL MOVE
-
-      // Taken a piece?
-      if (piece_dst != pieces.empty) {
-        logTitle += `, taking ${colStr(dst_colour)}'s ${chess_fns.getPieceName(piece_dst)}`;
-        this._taken += piece_dst;
-        logLine += ' ' + piece_dst;
-      }
-
-      // Won game?
-      if (chess_fns.isPieceA(piece_dst, 'king')) {
-        this.declareWinner(this.go);
-      }
-
-      // Pawn reached end?
-      if ((piece_src == pieces.w.pawn && dst[0] == 0) || (piece_src == pieces.b.pawn && dst[0] == rows - 1)) {
-        if (pawnInto == null) {
-          return { code: 3 };
-        } else {
-          piece_src = pawnInto;
-          logTitle += `, turned into ${pawnInto}`;
-          logLine += ` (${pawnInto})`;
-        }
-      }
-    }
-
-    // Actually move pieces
-    this.recordState();
-    chessBoard.replace(...dst, piece_src);
-    chessBoard.replace(...src, replaceWith);
-    this._data = chessBoard.getData();
-    this._moved = chessBoard.getMoved();
-    this._movArgs = null;
-
-    this.writeLog(logLine, logTitle);
-
-    return { code: 0, msg: logTitle };
   }
 
   /** Add state to history */
@@ -336,6 +311,7 @@ class ChessInstance {
       s: this._singleplayer ? 1 : 0,
       p: btoa(this._passwd),
       go: this.go,
+      ai: +this._AI,
       d: this.getDataString(),
       as: +this._allowSpectators,
       h: this._history,
@@ -345,7 +321,7 @@ class ChessInstance {
       if (e) {
         console.error(`[[!]] Game '${this._name}': could not save to file\n`, e);
       } else {
-        console.log(`Game '${this._name}': saved to file`);
+        // console.log(`Game '${this._name}': saved to file`);
       }
     });
   }
@@ -398,6 +374,7 @@ ChessInstance.fromFile = (name, b64) => {
   obj.loadDataString(data.d);
   obj.declareWinner(obj.winner);
   obj.go = data.go;
+  obj._AI = !!data.ai;
   obj._allowSpectators = !!data.as;
   obj._history = data.h;
   if (Array.isArray(data.l)) obj._log = data.l;
@@ -469,10 +446,7 @@ const all = {};
 
 // :: /data/pieces.json
 const pieces = JSON.parse(fs.readFileSync('data/pieces.json'));
-pieces.w.all = Object.values(pieces.w);
-pieces.w.pawnInto = pieces.w.all.filter(x => x != pieces.w.pawn && x != pieces.w.king);
-pieces.b.all = Object.values(pieces.b);
-pieces.b.pawnInto = pieces.b.all.filter(x => x != pieces.b.pawn && x != pieces.b.king);
+const piece_values = JSON.parse(fs.readFileSync('data/piece_values.json'));
 chess_fns.loadPieces(pieces);
 
-module.exports = { ChessInstance, saves_path, all, pieces, rows, cols, loadFiles };
+module.exports = { ChessInstance, saves_path, all, pieces, piece_values, rows, cols, loadFiles };

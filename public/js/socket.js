@@ -49,12 +49,14 @@ const socket = {
     });
 
     this._.on('pieces-obj', obj => pieces = obj);
+    this._.on('piece-value-obj', obj => piece_values = obj);
 
     // GAME INFO
     this._.on('game-info', x => {
       game.setName(atob(x.name));
       game._singleplayer = !!x.s;
       game._host = !!x.host;
+      game._ai = !!x.ai;
       if (x.host) {
         document.title += ' (host)';
         dom.input_allow_spectators.checked = x.aspec;
@@ -68,11 +70,15 @@ const socket = {
       if (x.s) {
         dom.p_colour.setAttribute('hidden', 'hidden');
         game._me = '*';
+        dom.p_ai_wrapper.removeAttribute('hidden'); // Option to switch to AI
       } else {
         dom.p_colour.removeAttribute('hidden');
         dom.p_colour.innerHTML = 'Colour: ' + (x.col == 'w' ? 'white' : 'black') + '<br/>';
         game.me = x.col;
+        dom.p_ai_wrapper.setAttribute('hidden', 'hidden'); // Cannot play against AI in multiplayer
       }
+
+      dom.input_ai.checked = game._ai;
     });
 
     // GAME STATS
@@ -114,8 +120,12 @@ const socket = {
     });
 
     this._.on('redirect', url => window.location.href = url);
-
-    this._.on('choose-pawn-transform', colour => game.choosePawnTransform(colour));
+    this._.on('move-done', () => game._ai && game.aiPlay());
+    this._.on('against-ai', val => {
+      // console.log("Against AI = %c" + (!!val), "font-weight:bold;color:" + (val ? 'green' : 'red'));
+      dom.input_ai.checked = val;
+      game._ai = !!val;
+    });
   }
 };
 

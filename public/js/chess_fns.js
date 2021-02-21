@@ -305,6 +305,30 @@ function chessBoard(data, moved) {
   };
 
   /**
+   * Get array of ALL moves
+   * - Executes getMoves(r, c) on every piece
+   * @param {"w" | "b"} colour
+   * @return {{ src: number[], dst: number[] }[]}
+   */
+  const getAllMoves = colour => {
+    let allMoves = [], moves, src;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (data[r][c] != pieces.empty && getPieceColour(data[r][c]) == colour) {
+          moves = getMoves(r, c);
+          if (moves != null) {
+            src = [r, c];
+            for (let move of moves) {
+              allMoves.push({ src, dst: move });
+            }
+          }
+        }
+      }
+    }
+    return allMoves;
+  };
+
+  /**
    * Is this move a valid mvoe?
    * @param {[number, number]} src - Source position
    * @param {[number, number]} dst - Destination position
@@ -342,14 +366,125 @@ function chessBoard(data, moved) {
     }
   };
 
+  /** Get piece value at position */
+  const pieceValue = (r, c, colour) => getPieceValue(data[r][c], r, c, colour);
+
+  /**
+   * Evaluate board in terms of colour <colour>
+   * @param {"w" | "b"} colour
+   * @return {number}
+   */
+  const evaluate = colour => {
+    let score = 0;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        score += getPieceValue(data[r][c], r, c, colour);
+    return score;
+  };
+
+  /**
+   * Move src to dst (assume it was validated already)
+   * @param {number[]} src - Source position
+   * @param {number[]} dst - Destination position
+   * @return {object}
+   */
+  const move = (src, dst) => {
+    let returnObject = { src: { pos: src }, dst: { pos: dst }, };
+
+    let piece_src = data[src[0]][src[1]], piece_dst = data[dst[0]][dst[1]];
+    let src_colour = getPieceColour(piece_src), dst_colour = getPieceColour(piece_dst);
+    returnObject.src.colour = src_colour;
+    returnObject.src.piece = piece_src;
+    returnObject.dst.colour = dst_colour;
+    returnObject.dst.piece = piece_dst;
+
+    let logTitle = `${colStr(src_colour)} ${getPieceName(piece_src)} from ${lbl(...src)} to ${lbl(...dst)}`;
+    let logLine = `${piece_src} ${lbl(...src)} &rarr; ${lbl(...dst)}`;
+
+    let replaceWith = pieces.empty;
+
+    // Are we castling
+    if (src_colour == dst_colour && piece_src == pieces[src_colour].king && piece_dst == pieces[dst_colour].rook && !hasMoved(...src) && !hasMoved(...dst)) {
+      replaceWith = pieces[dst_colour].rook;
+      logTitle += ' (castled)';
+    } else {
+      // ==== NORMAL MOVE
+
+      // Taken a piece?
+      if (piece_dst != pieces.empty) {
+        logTitle += `, taking ${colStr(dst_colour)}'s ${getPieceName(piece_dst)}`;
+        logLine += ' &#128369; ' + piece_dst;
+      }
+
+      // Won game?
+      let enemy_colour = src_colour == 'w' ? 'b' : 'w';
+      if (piece_dst == pieces[enemy_colour].king) {
+        returnObject.winner = src_colour;
+      }
+
+      // Pawn reached end?
+      if ((piece_src == pieces.w.pawn && dst[0] == 0) || (piece_src == pieces.b.pawn && dst[0] == rows - 1)) {
+        let pawnInto = pieces[src_colour].pawnInto[0];
+        piece_src = pawnInto;
+        logTitle += `, turned into ${pawnInto}`;
+        logLine += ` (${pawnInto})`;
+      }
+    }
+
+    // Actually move pieces
+    replace(...dst, piece_src);
+    replace(...src, replaceWith);
+    returnObject.log = { title: logTitle, line: logLine };
+
+    return returnObject;
+  };
+
   return {
-    getAt, rows, cols, getMoves, isValidMove, lbl, hasMoved, replace,
+    getAt, rows, cols, getMoves, getAllMoves, isValidMove, lbl, hasMoved, replace, evaluate, move,
+    getPieceValue: pieceValue,
     getData: () => data.flat().join(''),
     getMoved: () => moved.flat().join(''),
+    clone: () => chessBoard(data.map(a => ([...a])), moved.map(a => ([...a]))),
   };
 }
 
+/**
+ * Get piece information
+ * @param {string} piece 
+ * @return {{ colour: string, type: string, piece: string }} Information object
+ */
+const getPieceInfo = piece => {
+  for (const colour of 'wb') {
+    for (const key in pieces[colour]) {
+      if (piece == pieces[colour][key]) return { piece, colour, type: key, };
+    }
+  }
+  return { piece, colour: undefined, type: undefined };
+};
+
+/**
+ * Get value of a piece
+ * @param {string} piece - Piece to get value of
+ * @param {number} row - Row position of piece
+ * @param {number} col - Column position of piece
+ * @param {"w" | "b"} colourAs - Colour we are playing as
+ * @return {number} Score
+ */
+const getPieceValue = (piece, row, col, colourAs = 'w') => {
+  if (piece == pieces.empty) return 0;
+
+  const info = getPieceInfo(piece);
+  if (info.type && info.colour) {
+    let base = piece_values.weights[info.type];
+    let pos = piece_values.move[info.colour][info.type][row][col];
+    let coeff = info.colour == colourAs ? 1 : -1; // 1 for if our piece, -1 if enemy's piece
+    return coeff * (base + pos);
+  } else {
+    return NaN;
+  }
+};
+
 if (typeof module !== 'undefined' && module.exports) {
   const loadPieces = _pieces => typeof pieces == "undefined" && (pieces = _pieces);
-  module.exports = { loadPieces, getPieceColour, colStr, isPiece, isPieceA, chessBoard, dataToArray, getPieceName };
+  module.exports = { loadPieces, getPieceColour, colStr, isPiece, isPieceA, chessBoard, dataToArray, getPieceName, getPieceValue, getPieceInfo };
 }

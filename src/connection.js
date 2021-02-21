@@ -21,7 +21,7 @@ class Connection {
     this.spectator = t.isSpectator();
     this.name = t.getCreatorName();
     this.colour = undefined; // Colour 'w' or 'b'. Assigned by ChessInstance object (by add_conn)
-    this.admin = undefined; // Requires request
+    this.isAdmin = undefined; // Requires request
 
     this._initListeners();
     this.open();
@@ -52,6 +52,7 @@ class Connection {
         host: +this.isHost,
         spec: +this.spectator, // Am spectator?
         col: this.colour, // Our colour
+        ai: +this.chess.againstAI(),
       };
       if (this.isHost) obj.aspec = +this.chess._allowSpectators;
       this.socket.emit('game-info', obj);
@@ -72,14 +73,16 @@ class Connection {
       this.chess.writeLog('<i>Game Reset</i>', 'Host reset the game');
       this.chess.saveToFile();
 
-      io.in(this.chess.room_name).emit('game-data', this.chess.getGameData());
-      io.in(this.chess.room_name).emit('log', this.chess._log);
+      const room = io.in(this.chess.room_name);
+      room.emit('game-data', this.chess.getGameData());
+      room.emit('whos-go', this.chess.go);
+      room.emit('log', this.chess._log);
       this.socket.emit('msg', '[!] Reset game');
     });
 
     // ! ADMINISTRATOR ONLY
     this.socket.on('req-save', ({ d, m, t }) => {
-      if (!this.isHost) return this.permissionError("admin");
+      if (!this.isAdmin) return this.permissionError("admin");
 
       let v = chess.ChessInstance.isValidData(d);
       if (v === true) {
@@ -105,16 +108,16 @@ class Connection {
     });
 
     // Request to move
+    // { src: [source], dst: [destination], ai: [AI making this move?] }
     this.socket.on('req-move', data => {
       if (!Array.isArray(data.dst) || typeof data.dst[0] != 'number' || typeof data.dst[1] != 'number' ||
         !Array.isArray(data.src) || typeof data.src[0] != 'number' || typeof data.src[1] != 'number') {
         this.socket.emit('_error', 'Bad Request (request to move)');
       } else {
-        let resp = this.chess.attempt_move(this, data.src, data.dst);
+        let resp = this.chess.attempt_move(this, data.src, data.dst, data.ai);
         if (resp.code === 0) {
           this.postMove();
-        } else if (resp.code === 3) {
-          this.socket.emit('choose-pawn-transform', this.chess.go);
+          // this.socket.emit('msg', resp.obj);
         } else {
           let title = "Unable to move piece";
           if (resp.code == 2) title = "Illegal Move";
@@ -143,13 +146,6 @@ class Connection {
       } else {
         this.socket.emit('alert', { title: 'Unable to restore game', msg: 'Game is at latest recorded state.' });
       }
-    });
-
-    this.socket.on('req-clear-history', () => {
-      let length = this.chess._history.length;
-      this.chess._history.length = 0;
-      this.chess.saveToFile();
-      this.socket.emit('msg', `Cleared game history (removed ${length} items)`);
     });
 
     // ! HOST ONLY
@@ -187,25 +183,6 @@ class Connection {
       }
     });
 
-    this.socket.on('chose-pawn-transform', piece => {
-      if (this.chess._movArgs) {
-        if (typeof piece === 'string' && piece.length === 1) {
-          const possible = pieces[this.chess.go].pawnInto;
-          if (possible.indexOf(piece) !== -1) {
-            this.chess.move(...this.chess._movArgs, piece);
-            this.postMove();
-          } else {
-            this.socket.emit('choose-pawn-transform', this.chess.go);
-            this.socket.emit('alert', { title: 'Invalid Piece', msg: 'Cannot transform pawn into an invalid piece (' + piece + ')' });
-          }
-        } else {
-          this.socket.emit('_error', `Bad Request: invalid argument (event:choose-pawn-transform)`);
-        }
-      } else {
-        this.socket.emit('_error', `Not expecting pawn transform selection at this time`);
-      }
-    });
-
     // ! HOST ONLY
     this.socket.on('change-gamemode', singleplayer => {
       if (!this.isHost) return this.permissionError("host");
@@ -218,6 +195,38 @@ class Connection {
         this.chess.saveToFile();
         io.in(this.chess.room_name).emit('redirect', '/index.html?e=change_mode'); // Kick all players
       }
+    });
+
+    // ! HOST ONLY
+    this.socket.on('against-ai', val => {
+      if (!this.isHost) return this.permissionError("host");
+      if (val != null) {
+        this.chess.againstAI(val); // Set value if provided
+        this.chess.saveToFile(); // Save change
+      }
+      this.socket.emit('against-ai', this.chess.againstAI());
+    });
+
+    // ******* DEVELOPER ********************************
+    // ! ADMIN ONLY
+    this.socket.on('req-clear-history', () => {
+      if (!this.isAdmin) return this.permissionError("admin");
+
+      let length = this.chess._history.length;
+      this.chess._history.length = 0;
+      this.chess.saveToFile();
+      this.socket.emit('msg', `Cleared game history (removed ${length} items)`);
+    });
+
+    // ! ADMIN ONLY
+    this.socket.on('req-clear-log', () => {
+      if (!this.isAdmin) return this.permissionError("admin");
+
+      let length = this.chess._log.length;
+      this.chess._log.length = 0;
+      this.chess.saveToFile();
+      io.in(this.chess.room_name).emit('log', this.chess._log);
+      this.socket.emit('msg', `Cleared game log (removed ${length} entries)`);
     });
   }
 
@@ -232,6 +241,7 @@ class Connection {
     this.updateLog();
     this.socket.emit('token-ok');
     this.socket.emit('pieces-obj', chess.pieces);
+    this.socket.emit('piece-value-obj', chess.piece_values);
     this.updateMemberNames();
   }
 
@@ -259,6 +269,7 @@ class Connection {
     const room = io.in(this.chess.room_name);
     room.emit('whos-go', this.chess.go);
     room.emit('game-data', this.chess.getGameData());
+    if (this.chess.againstAI()) room.emit('move-done', this.chess.go);
   }
 
   /**
@@ -267,11 +278,11 @@ class Connection {
    * @return {boolean} Granted?
    */
   grantAdminRight(passwd) {
-    if (!this.spectator && this.admin == undefined && passwd == ADMIN_PASSWD) {
-      this.admin = true;
+    if (!this.spectator && this.isAdmin == undefined && passwd == ADMIN_PASSWD) {
+      this.isAdmin = true;
       return true;
     } else {
-      this.admin = false;
+      this.isAdmin = false;
       return false;
     }
   }
@@ -282,7 +293,7 @@ class Connection {
     let room = io.in(roomName);
     if (this.chess._singleplayer) {
       room.emit('player-name', { n: 1, name: this.name });
-      room.emit('player-name', { n: 2, name: this.name });
+      room.emit('player-name', { n: 2, name: this.chess._AI ? 'Computer' : this.name });
     } else {
       room.emit('player-name', { n: 1, name: (this.chess.conns.length > 0 ? this.chess.conns[0].name : '?') });
       room.emit('player-name', { n: 2, name: (this.chess.conns.length > 1 ? this.chess.conns[1].name : '?') });

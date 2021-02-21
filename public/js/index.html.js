@@ -42,8 +42,13 @@
   const div_chat = document.getElementById('chat');
   const input_chat = document.getElementById('chat-input');
   const btn_send = document.getElementById('btn-send');
+  let IS_OVER_CHAT = false;
   function msg_line(from, text) {
-    div_chat.innerHTML += `[<b>${from}</b>]  ${text}<br>`;
+    text = text.replace(/</, '&lt;');
+    text = text.replace(/>/, '&gt;');
+    if (from[0] == '[') text = `<em>${text}</em>`;
+    div_chat.innerHTML += `[<b>${from}</b>]  ${text}`;
+    div_chat.innerHTML += '<br>';
     div_chat.scrollTo(0, div_chat.scrollHeight); // Scroll to bottom
   }
 
@@ -112,12 +117,17 @@
     btn_connect.addEventListener('click', () => bootbox.dialog(connect_game_dialog));
     btn_create.addEventListener('click', () => bootbox.dialog(create_game_dialog));
     p_myname.addEventListener('click', clickChangeName);
+    div_chat.addEventListener('mouseenter', () => IS_OVER_CHAT = true);
+    div_chat.addEventListener('mouseleave', () => IS_OVER_CHAT = false);
     btn_send.addEventListener('click', () => {
       const text = input_chat.value;
       if (text.length > 0) {
         socket.emit('send-msg', text);
         input_chat.value = '';
       }
+    });
+    document.addEventListener('keypress', (e) => {
+      if (e.key == 'Enter' && IS_OVER_CHAT) btn_send.click();
     });
 
     // Any error variables?

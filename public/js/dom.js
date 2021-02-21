@@ -6,6 +6,7 @@ const dom = {
   btn_mode: document.getElementById('btn-mode'),
 
   input_allow_spectators: document.getElementById('allow-spectators'),
+  input_ai: document.getElementById('against-ai'),
 
   canvas: document.getElementById('canvas'),
   div_canvas_wrapper: document.getElementById('canvas-wrapper'),
@@ -22,6 +23,8 @@ const dom = {
   p_winner: document.getElementById('game-winner'),
   p_p1name: document.getElementById('player-1-name'),
   p_p2name: document.getElementById('player-2-name'),
+  p_ai_wrapper: document.getElementById('game-ai-wrapper'),
+  p_ai_icon: document.getElementById('game-ai-icon'),
 
   h2_gname: document.getElementById('game-name'),
 };
@@ -77,3 +80,7 @@ dom.btn_mode.addEventListener('click', () => {
     }
   });
 });
+
+dom.input_ai.addEventListener('change', ev => socket._.emit('against-ai', +ev.target.checked));
+
+dom.p_ai_icon.addEventListener('click', () => bootbox.dialog(generate_ai_options_dialog()));

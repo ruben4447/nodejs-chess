@@ -14,7 +14,7 @@ let render = {
     pad: 30,
     takenw: 40, // Width of "taken" section
     taken_size: 30, // Font size of taken pieces
-    dev: false, // Render developer stuff
+    dev: true, // Render developer stuff
     giveup_size: 22,
   },
 
@@ -175,7 +175,7 @@ render.render = function () {
     this.ctx.strokeStyle = rgb(...this.opts.col_w);
     this.ctx.fillStyle = rgb(this.opts.fill_w);
     let inc = (canvas.height - 2 * this.opts.pad) / (taken.w.length + 1);
-    let x = width - this.opts.takenw / 2, y = this.opts.pad;
+    let x = canvas.width - this.opts.takenw / 2, y = this.opts.pad;
     for (let piece of taken.w) {
       y += inc;
       this.ctx.fillText(piece, x, y);

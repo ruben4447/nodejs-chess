@@ -48,6 +48,10 @@ div#board {
   font-weight: bold;
 }
 
+#game-winner-wrapper {
+  font-size: 1.5em;
+}
+
 #game-log {
   height: 94vh;
   width: 15vw;

@@ -5,7 +5,7 @@ const { loadFiles } = require('./chess.js');
 const access_token = require('./access_token.js');
 const connection = require('./connection.js');
 
-indexhtml.chat.write("SERVER", `<em>Server Restarted on <small>${new Date(Date.now()).toString()}</small></em>`);
+indexhtml.chat.writeServer(`Server Restarted (${new Date(Date.now()).toString()})`);
 
 io.on('connection', (socket) => {
   addClient(socket);
@@ -17,8 +17,8 @@ io.on('connection', (socket) => {
       indexhtml_conn = true;
       let conn = new indexhtml.Connection(socket);
       conn.updateChat();
-      // conn.setName("Bill");
-      // conn.requestConnectGame("test1", "123");
+      conn.setName("Ruben");
+      conn.requestConnectGame("test1", "123");
     }
   });
 
@@ -32,7 +32,6 @@ io.on('connection', (socket) => {
         socket.emit('invalid-token', 2);
       }
     } else {
-      console.log(access_token.Token.all)
       socket.emit('invalid-token', 1);
     }
   });

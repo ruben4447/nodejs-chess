@@ -5,6 +5,7 @@
 const chess = require('./chess.js');
 const access_token = require('./access_token.js');
 const atob = require('atob');
+const { clientCount } = require('./server.js');
 
 /**
  * Request to connect to a game
@@ -56,6 +57,11 @@ function request_create_game(conn, name, passwd, singleplayer) {
   conn._.emit('game-count', Object.keys(chess.all).length);
 }
 
+let r_name_invalid = /[^A-Za-z0-9\-_]/;
+function is_name_valid(name) {
+  return typeof name == 'string' && name.length > 0 && !r_name_invalid.test(name);
+}
+
 /** Connection from index.html */
 class Connection {
   constructor(socket) {
@@ -67,14 +73,14 @@ class Connection {
     socket.on('req-connect-game', ({ name, passwd, spec }) => this.requestConnectGame(name, atob(passwd), !!spec));
     socket.on('req-create-game', ({ name, passwd, s }) => this.requestCreateGame(name, atob(passwd), s == 1));
     socket.on('change-name', name => {
-      if (typeof name !== 'string' || name.length == 0) return socket.emit('_error', 'Invalid name provided.');
+      if (!is_name_valid(name)) return socket.emit('_error', 'Invalid name provided.');
       if (this._name != undefined) return socket.emit('_error', 'Name already been set.');
       let r = this.setName(name);
       if (!r) {
         return socket.emit('_error', 'Name is already taken.');
       }
     });
-    socket.on('send-msg', text => chat.write(this.getName(), text));
+    socket.on('send-msg', text => chat.write(this, text));
     socket.on('disconnect', () => {
       let i = Connection.all.indexOf(this);
       if (i != -1) Connection.all.splice(i, 1);
@@ -83,7 +89,7 @@ class Connection {
     Connection.all.push(this);
   }
 
-  getName() { return this._name == undefined ? "(anonymous)" : this._name; }
+  getName() { return this._name == undefined ? Connection.defaultName : this._name; }
   setName(name) {
     if (Connection.names.indexOf(name) == -1) {
       this._name = name;
@@ -105,6 +111,7 @@ class Connection {
   }
 }
 
+Connection.defaultName = "(anonymous)";
 Connection.names = [];
 Connection.all = [];
 
@@ -118,10 +125,68 @@ const chat = (function () {
     while (lines.length > MAX_LENGTH) lines.shift();
   };
 
+  const getMessageDestination = text => {
+    if (text[0] == '@') {
+      let i = 0;
+      let to = [];
+      while (text[i] == '@') {
+        i++;
+        let name = text.substr(i).split(' ')[0];
+        if (is_name_valid(name)) {
+          to.push(name);
+        }
+        i += name.length;
+        while (text[i] == ' ') i++;
+      }
+      return to;
+    } else {
+      return '*';
+    }
+  };
+
+  /**
+   * Send message
+   * @param {Connection} from 
+   * @param {string} text 
+   * @param {boolean} doUpdate - Trigger message update?
+   */
   const write = (from, text, doUpdate = true) => {
-    lines.push({ from, text });
-    if (doUpdate) Connection.all.forEach(conn => conn._.emit('new-msg', { from, text }));
-    flush();
+    if (text[0] == '!') {
+      let msg = '';
+      if (text == "!online") {
+        msg = `There are ${clientCount()} users online`;
+      } else if (text == '!available') {
+        let available = Connection.all.map(c => c.getName()).filter(n => n != Connection.defaultName);
+        msg = `There are ${available.length} users which are available (${available.join(', ')})`;
+      } else if (text == "!whoami") {
+        msg = `Your name is "${from.getName()}"`;
+      } else {
+        msg = `Unknown Command`;
+      }
+      from._.emit('new-msg', { from: '[COMMAND]', text: msg });
+    } else {
+      let msg_object = { from: from.getName(), text };
+      lines.push(msg_object);
+      flush();
+
+      if (doUpdate) {
+        let to = getMessageDestination(text);
+        if (to == '*') {
+          to = Connection.all;
+        } else {
+          to = Connection.all.filter(conn => conn.getName() != Connection.defaultName && to.indexOf(conn.getName()) !== -1);
+          from._.emit('new-msg', { from: '[SERVER]', text: `Sending addressed message to ${to.length} users (${to.map(c => c.getName()).join(', ')})` });
+        }
+        to.forEach(conn => conn._.emit('new-msg', msg_object));
+      }
+    }
+  };
+
+  /** Server emit a message */
+  const writeServer = msg => {
+    let obj = { from: '[SERVER]', text: msg };
+    lines.push(obj);
+    Connection.all.forEach(conn => conn._.emit('new-msg', obj));
   };
 
   const length = () => lines.length;
@@ -130,7 +195,7 @@ const chat = (function () {
     socket.emit('entire-chat', lines);
   };
 
-  return Object.freeze({ write, length, updateSocket, MAX_LENGTH });
+  return Object.freeze({ write, writeServer, length, updateSocket, MAX_LENGTH });
 })();
 
 module.exports = { Connection, chat };
